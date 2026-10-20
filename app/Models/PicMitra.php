@@ -5,14 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class PicPerusahaan extends Model
+class PicMitra extends Model
 {
-    protected $table = 'pic_perusahaan';
+    protected $table = 'pic_mitra';
 
     protected $primaryKey = 'id_pic';
 
     protected $fillable = [
-        'id_perusahaan',
+        'id_mitra',
         'nama_pic',
         'jabatan',
         'email',
@@ -20,12 +20,12 @@ class PicPerusahaan extends Model
         'status',
     ];
 
-    public function perusahaan(): BelongsTo
+    public function mitra(): BelongsTo
     {
         return $this->belongsTo(
-            Perusahaan::class,
-            'id_perusahaan',
-            'id_perusahaan'
+            Mitra::class,
+            'id_mitra',
+            'id_mitra'
         );
     }
 }

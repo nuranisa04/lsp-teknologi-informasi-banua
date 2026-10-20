@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class User extends Authenticatable
 {
@@ -17,6 +18,7 @@ class User extends Authenticatable
     protected $fillable = [
         'id_role',
         'nama',
+        'foto_profile',
         'email',
         'password',
         'no_whatsapp',
@@ -41,6 +43,15 @@ class User extends Authenticatable
             Role::class,
             'id_role',
             'id_role'
+        );
+    }
+
+    public function mitras(): HasMany
+    {
+        return $this->hasMany(
+            Mitra::class,
+            'id_user',
+            'id_user'
         );
     }
 

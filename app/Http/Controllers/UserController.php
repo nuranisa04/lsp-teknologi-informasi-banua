@@ -18,6 +18,12 @@ class UserController extends Controller
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | INDEX - READ
+    |--------------------------------------------------------------------------
+    */
+
     public function index()
     {
         $this->adminOnly();
@@ -27,70 +33,114 @@ class UserController extends Controller
             ->paginate(10);
 
         return view(
-            'users.index',
+            'users.data_user',
             compact('users')
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE
+    |--------------------------------------------------------------------------
+    */
 
     public function create()
     {
         $this->adminOnly();
 
-        $roles = Role::orderBy('id_role')->get();
+        $roles = Role::orderBy(
+            'id_role'
+        )->get();
 
         return view(
-            'users.tambah_user',
+            'users.tambah_data_user',
             compact('roles')
         );
     }
 
-    public function store(Request $request)
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | STORE - CREATE
+    |--------------------------------------------------------------------------
+    */
+
+    public function store(
+        Request $request
+    ) {
+
         $this->adminOnly();
 
         $data = $request->validate([
+
             'id_role' => [
+
                 'required',
+
                 'exists:roles,id_role',
+
             ],
 
             'nama' => [
+
                 'required',
+
                 'string',
+
                 'max:255',
+
             ],
 
             'email' => [
+
                 'required',
+
                 'email',
+
                 'max:255',
+
                 'unique:users,email',
+
             ],
 
             'password' => [
+
                 'required',
+
                 'string',
+
                 'min:8',
+
             ],
 
             'no_whatsapp' => [
                 'nullable',
                 'string',
                 'max:30',
+                'regex:/^[0-9]+$/',
             ],
 
             'status' => [
+
                 'required',
+
                 Rule::in([
+
                     'aktif',
+
                     'tidak aktif',
+
                 ]),
+
             ],
+
+        ], [
+            'no_whatsapp.regex' => 'Nomor WhatsApp hanya boleh berisi angka.',
         ]);
 
-        $data['password'] = Hash::make(
-            $data['password']
-        );
+        $data['password'] =
+            Hash::make(
+                $data['password']
+            );
 
         User::create($data);
 
@@ -98,18 +148,28 @@ class UserController extends Controller
             ->route('users.index')
             ->with(
                 'success',
-                'Pengguna berhasil ditambahkan.'
+                'Data pengguna berhasil ditambahkan.'
             );
     }
 
-    public function edit(User $user)
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | EDIT - UPDATE FORM
+    |--------------------------------------------------------------------------
+    */
+
+    public function edit(
+        User $user
+    ) {
+
         $this->adminOnly();
 
-        $roles = Role::orderBy('id_role')->get();
+        $roles = Role::orderBy(
+            'id_role'
+        )->get();
 
         return view(
-            'users.edit_user',
+            'users.edit_data_user',
             compact(
                 'user',
                 'roles'
@@ -117,28 +177,47 @@ class UserController extends Controller
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE
+    |--------------------------------------------------------------------------
+    */
+
     public function update(
         Request $request,
         User $user
     ) {
+
         $this->adminOnly();
 
         $data = $request->validate([
+
             'id_role' => [
+
                 'required',
+
                 'exists:roles,id_role',
+
             ],
 
             'nama' => [
+
                 'required',
+
                 'string',
+
                 'max:255',
+
             ],
 
             'email' => [
+
                 'required',
+
                 'email',
+
                 'max:255',
+
                 Rule::unique(
                     'users',
                     'email'
@@ -146,36 +225,74 @@ class UserController extends Controller
                     $user->id_user,
                     'id_user'
                 ),
+
             ],
 
             'password' => [
+
                 'nullable',
+
                 'string',
+
                 'min:8',
+
             ],
 
             'no_whatsapp' => [
                 'nullable',
                 'string',
                 'max:30',
+                'regex:/^[0-9]+$/',
             ],
 
             'status' => [
+
                 'required',
+
                 Rule::in([
+
                     'aktif',
+
                     'tidak aktif',
+
                 ]),
+
             ],
+
+        ], [
+            'no_whatsapp.regex' => 'Nomor WhatsApp hanya boleh berisi angka.',
         ]);
 
-        if (!empty($data['password'])) {
-            $data['password'] = Hash::make(
+        /*
+        |--------------------------------------------------------------------------
+        | PASSWORD
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            ! empty(
+                $data['password']
+            )
+        ) {
+
+            $data['password'] =
+                Hash::make(
+                    $data['password']
+                );
+
+        } else {
+
+            unset(
                 $data['password']
             );
-        } else {
-            unset($data['password']);
+
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE USER
+        |--------------------------------------------------------------------------
+        */
 
         $user->update($data);
 
@@ -183,19 +300,57 @@ class UserController extends Controller
             ->route('users.index')
             ->with(
                 'success',
-                'Pengguna berhasil diperbarui.'
+                'Data pengguna berhasil diperbarui.'
             );
     }
 
-    public function destroy(User $user)
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | KONFIRMASI HAPUS
+    |--------------------------------------------------------------------------
+    */
+
+    public function confirmDelete(
+        User $user
+    ) {
+
         $this->adminOnly();
 
-        if ($user->id_user === auth()->id()) {
-            return back()->with(
-                'error',
-                'Akun yang sedang digunakan tidak dapat dihapus.'
-            );
+        return view(
+            'users.hapus_data_user',
+            compact('user')
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DELETE
+    |--------------------------------------------------------------------------
+    */
+
+    public function destroy(
+        User $user
+    ) {
+
+        $this->adminOnly();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Tidak boleh menghapus akun sendiri
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $user->id_user === auth()->id()
+        ) {
+
+            return redirect()
+                ->route('users.index')
+                ->with(
+                    'error',
+                    'Akun yang sedang digunakan tidak dapat dihapus.'
+                );
+
         }
 
         $user->delete();
@@ -204,7 +359,7 @@ class UserController extends Controller
             ->route('users.index')
             ->with(
                 'success',
-                'Pengguna berhasil dihapus.'
+                'Data pengguna berhasil dihapus.'
             );
     }
 }
