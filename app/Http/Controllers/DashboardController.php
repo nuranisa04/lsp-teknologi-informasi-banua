@@ -37,6 +37,7 @@ class DashboardController extends Controller
 
         $mitraTerbaru =
             Mitra::latest()
+                ->with('jurusans:id_jurusan,id_mitra,nama_jurusan')
                 ->take(10)
                 ->get();
 

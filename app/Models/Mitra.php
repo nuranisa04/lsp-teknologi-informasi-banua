@@ -47,6 +47,11 @@ class Mitra extends Model
         );
     }
 
+    public function jurusans(): HasMany
+    {
+        return $this->hasMany(Jurusan::class, 'id_mitra', 'id_mitra');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(

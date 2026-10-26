@@ -42,17 +42,6 @@
                         <span class="badge bg-warning text-dark">Calon</span>
                     @endif
 
-                    @if ($mitra->status_kontak === 'Terverifikasi PIC')
-                        <span class="badge bg-success">Terverifikasi PIC</span>
-                    @elseif ($mitra->status_kontak === 'Kontak Mitra')
-                        <span class="badge bg-info text-dark">Kontak Mitra</span>
-                    @elseif ($mitra->status_kontak === 'Bukan PIC')
-                        <span class="badge bg-danger">Bukan PIC</span>
-                    @elseif ($mitra->status_kontak === 'Tidak Dapat Dihubungi')
-                        <span class="badge bg-secondary">Tidak Dapat Dihubungi</span>
-                    @else
-                        <span class="badge bg-warning text-dark">Belum Diverifikasi</span>
-                    @endif
                 </div>
             </div>
 
@@ -98,6 +87,37 @@
             </div>
         </div>
     </section>
+
+    @if ($mitra->jurusans->isNotEmpty())
+        <section class="card mb-4" aria-labelledby="jurusan-information-title">
+            <div class="card-body p-4">
+                <h3 class="h5 fw-bold mb-3" id="jurusan-information-title">Jurusan / Program Studi</h3>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0">
+                        <thead><tr><th>Jurusan / Program Studi</th><th>Nomor Kontak Jurusan / Program Studi</th><th>Nama PIC</th><th>Nomor PIC</th></tr></thead>
+                        <tbody>
+                            @foreach ($mitra->jurusans as $jurusan)
+                                @forelse ($jurusan->pics as $pic)
+                                    <tr><td>{{ $jurusan->nama_jurusan }}</td><td>{{ $jurusan->no_telepon ?: '-' }}</td><td>{{ $pic->nama_pic }}</td><td>{{ $pic->no_whatsapp }}</td></tr>
+                                @empty
+                                    <tr><td>{{ $jurusan->nama_jurusan }}</td><td>{{ $jurusan->no_telepon ?: '-' }}</td><td>-</td><td>-</td></tr>
+                                @endforelse
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    @elseif (in_array($mitra->bidang_usaha, ['Sekolah', 'Perguruan Tinggi'], true))
+        <section class="card mb-4" aria-labelledby="jurusan-information-title">
+            <div class="card-body p-4">
+                <h3 class="h5 fw-bold mb-3" id="jurusan-information-title">Jurusan / Program Studi</h3>
+                <div class="rounded-3 border bg-light p-3 text-muted">
+                    Belum ada jurusan atau program studi yang tersimpan untuk mitra ini.
+                </div>
+            </div>
+        </section>
+    @endif
 
     <section class="card" aria-labelledby="pic-information-title">
         <div class="card-body p-4">

@@ -690,8 +690,8 @@
                             <tr>
                                 <th scope="col" class="text-center">Mitra</th>
                                 <th scope="col">Kategori Mitra</th>
+                                <th scope="col" class="text-center">Email</th>
                                 <th scope="col">Nomor kontak</th>
-                                <th scope="col">Status kontak</th>
                             </tr>
                         </thead>
                         <tbody id="dashboard-mitra-list">
@@ -701,25 +701,15 @@
                                         <div class="dashboard-mitra-name">
                                             {{ $item->nama_mitra }}
                                         </div>
-                                        <div class="dashboard-mitra-email">
-                                            {{ $item->email ?: 'Tidak ada email' }}
-                                        </div>
-                                    </td>
-                                    <td class="text-center">{{ $item->bidang_usaha ?: '-' }}</td>
-                                    <td class="text-center">{{ $item->no_telepon ?: '-' }}</td>
-                                    <td>
-                                        @if ($item->status_kontak === 'Terverifikasi PIC')
-                                            <span class="badge bg-success dashboard-status">Terverifikasi PIC</span>
-                                        @elseif ($item->status_kontak === 'Kontak Mitra')
-                                            <span class="badge bg-info text-dark dashboard-status">Kontak Mitra</span>
-                                        @elseif ($item->status_kontak === 'Bukan PIC')
-                                            <span class="badge bg-danger dashboard-status">Bukan PIC</span>
-                                        @elseif ($item->status_kontak === 'Tidak Dapat Dihubungi')
-                                            <span class="badge bg-secondary dashboard-status">Tidak Dapat Dihubungi</span>
-                                        @else
-                                            <span class="badge bg-warning text-dark dashboard-status">Belum Diverifikasi</span>
+                                        @if (in_array($item->bidang_usaha, ['Perguruan Tinggi', 'Sekolah'], true))
+                                            @foreach ($item->jurusans as $jurusan)
+                                                <div class="dashboard-mitra-email">{{ $jurusan->nama_jurusan }}</div>
+                                            @endforeach
                                         @endif
                                     </td>
+                                    <td class="text-center">{{ $item->bidang_usaha ?: '-' }}</td>
+                                    <td class="text-center">{{ $item->email ?: 'Tidak ada email' }}</td>
+                                    <td class="text-center">{{ $item->no_telepon ?: '-' }}</td>
                                 </tr>
                             @empty
                                 <tr>

@@ -98,15 +98,15 @@
                     <tr>
 
                         <th>
-                            Nama PIC
-                        </th>
-
-                        <th>
-                            Email
-                        </th>
-
-                        <th>
                             Mitra
+                        </th>
+
+                        <th>
+                            Jurusan / Program Studi
+                        </th>
+
+                        <th>
+                            Nama PIC
                         </th>
 
                         <th>
@@ -114,7 +114,11 @@
                         </th>
 
                         <th>
-                            WhatsApp
+                            Email
+                        </th>
+
+                        <th>
+                            Nomor WA
                         </th>
 
                         <th>
@@ -140,6 +144,19 @@
 
                             <td>
 
+                                {{
+                                    $pic->mitra
+                                        ->nama_mitra
+                                }}
+
+                            </td>
+
+                            <td>
+                                {{ $pic->jurusans->pluck('nama_jurusan')->join(', ') ?: '-' }}
+                            </td>
+
+                            <td>
+
                                 <div class="fw-semibold">
 
                                     {{ $pic->nama_pic }}
@@ -149,22 +166,13 @@
                             </td>
 
                             <td>
-                                {{ $pic->email ?: '-' }}
-                            </td>
-
-                            <td>
-
-                                {{
-                                    $pic->mitra
-                                        ->nama_mitra
-                                }}
-
-                            </td>
-
-                            <td>
 
                                 {{ $pic->jabatan }}
 
+                            </td>
+
+                            <td>
+                                {{ $pic->email ?: '-' }}
                             </td>
 
                             <td>
@@ -235,7 +243,7 @@
                         <tr>
 
                             <td
-                                colspan="{{ auth()->user()->isAdmin() ? 7 : 6 }}"
+                                colspan="{{ auth()->user()->isAdmin() ? 8 : 7 }}"
                                 class="text-center py-5"
                             >
 

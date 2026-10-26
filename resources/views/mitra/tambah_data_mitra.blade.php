@@ -262,50 +262,6 @@
                 </div>
 
 
-                {{-- STATUS KONTAK --}}
-
-                <div class="col-md-6">
-
-                    <label class="form-label fw-semibold">
-
-                        Status Kontak
-
-                    </label>
-
-                    <select
-                        name="status_kontak"
-                        id="status_kontak"
-                        class="form-select"
-                    >
-
-                        <option value="" hidden>
-                        </option>
-
-                        <option value="Belum Diverifikasi">
-                            Belum Diverifikasi
-                        </option>
-
-                        <option value="Kontak Mitra">
-                            Kontak Mitra
-                        </option>
-
-                        <option value="Terverifikasi PIC">
-                            Terverifikasi PIC
-                        </option>
-
-                        <option value="Bukan PIC">
-                            Bukan PIC
-                        </option>
-
-                        <option value="Tidak Dapat Dihubungi">
-                            Tidak Dapat Dihubungi
-                        </option>
-
-                    </select>
-
-                </div>
-
-
                 {{-- STATUS MITRA --}}
 
                 <div class="col-md-6">
@@ -342,6 +298,20 @@
 
                 </div>
 
+                <div class="col-12" id="jurusan-wrapper" hidden>
+                    <label class="form-label fw-semibold">Jurusan / Program Studi</label>
+                    <div id="jurusan-rows">
+                        @foreach (old('jurusans', [['nama' => '', 'no_telepon' => '']]) as $index => $jurusan)
+                            <div class="card border mb-3 jurusan-row p-3" data-jurusan-key="index:{{ $index }}"><div class="row g-3">
+                                <div class="col-md-6"><label class="form-label">Nama Jurusan / Program Studi</label><input class="form-control" name="jurusans[{{ $index }}][nama]" value="{{ $jurusan['nama'] ?? '' }}">@error('jurusans.'.$index.'.nama')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
+                                <div class="col-md-6"><label class="form-label">Nomor Kontak Jurusan / Program Studi</label><input class="form-control" name="jurusans[{{ $index }}][no_telepon]" value="{{ $jurusan['no_telepon'] ?? '' }}" inputmode="numeric" maxlength="13"></div>
+                                <div class="col-12 text-end"><button type="button" class="btn btn-back remove-jurusan">Hapus Jurusan</button></div>
+                            </div></div>
+                        @endforeach
+                    </div>
+                    <button type="button" class="btn btn-back" id="add-jurusan">Tambah Jurusan</button>
+                </div>
+
 
                 {{-- TOGGLE DATA PIC --}}
 
@@ -369,7 +339,7 @@
                             type="button"
                             class="btn btn-lsp btn-sm d-inline-flex align-items-center gap-2"
                             id="pic-toggle"
-                            aria-expanded="{{ old('nama_pic') || old('jabatan') || old('no_whatsapp_pic') || old('email_pic') ? 'true' : 'false' }}"
+                            aria-expanded="{{ old('nama_pic') || old('jabatan') || old('no_whatsapp_pic') || old('email_pic') || old('pics') ? 'true' : 'false' }}"
                             aria-controls="form-data-pic"
                         >
                             <i class="bi bi-plus-lg" aria-hidden="true"></i>
@@ -390,6 +360,7 @@
                         || old('jabatan')
                         || old('no_whatsapp_pic')
                         || old('email_pic')
+                        || old('pics')
                         ? ''
                         : 'display:none;'
                     }}"
@@ -399,7 +370,14 @@
 
                         <div class="card-body">
 
+                            <input type="hidden" name="pics_present" value="1">
+
                             <div class="row g-3">
+
+                                <div class="col-12" id="pic-jurusan-scope-wrapper" hidden>
+                                    <label class="form-label fw-semibold">Jurusan yang ditangani PIC</label>
+                                    <div class="pic-jurusan-select border border-warning rounded-3 bg-warning-subtle p-2" id="pic-jurusan-keys" data-input-name="pic_jurusan_keys[]" data-selected-keys="{{ implode(',', old('pic_jurusan_keys', ['__instansi__'])) }}"></div>
+                                </div>
 
 
                                 <div class="col-md-6">
@@ -500,6 +478,28 @@
 
                             </div>
 
+                            <div id="additional-pics" class="mt-3">
+                                @foreach (old('pics', []) as $extraIndex => $extraPic)
+                                    <div class="card border mt-3 pic-entry">
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-12 pic-entry-scope-wrapper" hidden>
+                                                    <label class="form-label fw-semibold">Jurusan yang ditangani PIC</label>
+                                                    <div class="pic-jurusan-select border border-warning rounded-3 bg-warning-subtle p-2" data-input-name="pics[{{ $extraIndex }}][jurusan_keys][]" data-selected-keys="{{ implode(',', $extraPic['jurusan_keys'] ?? []) }}"></div>
+                                                    <div class="form-text">Pilihan menampilkan nama mitra dan jurusan. Centang satu atau beberapa jurusan; beberapa PIC dapat ditambahkan pada jurusan yang sama. Pilih Seluruh Jurusan jika PIC menangani semuanya.</div>
+                                                </div>
+                                                <div class="col-md-6"><label class="form-label fw-semibold">Nama PIC <span class="text-danger">*</span></label><input class="form-control" name="pics[{{ $extraIndex }}][nama_pic]" value="{{ $extraPic['nama_pic'] ?? '' }}">@error('pics.'.$extraIndex.'.nama_pic')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
+                                                <div class="col-md-6"><label class="form-label fw-semibold">Jabatan <span class="text-danger">*</span></label><input class="form-control" name="pics[{{ $extraIndex }}][jabatan]" value="{{ $extraPic['jabatan'] ?? '' }}">@error('pics.'.$extraIndex.'.jabatan')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
+                                                <div class="col-md-6"><label class="form-label fw-semibold">Email PIC</label><input type="email" class="form-control" name="pics[{{ $extraIndex }}][email_pic]" value="{{ $extraPic['email_pic'] ?? '' }}" maxlength="255"></div>
+                                                <div class="col-md-6"><label class="form-label fw-semibold">Nomor WhatsApp PIC <span class="text-danger">*</span></label><input class="form-control" name="pics[{{ $extraIndex }}][no_whatsapp]" value="{{ $extraPic['no_whatsapp'] ?? '' }}" inputmode="numeric" maxlength="13" pattern="[0-9]{1,13}" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 13)"></div>
+                                                <div class="col-12 text-end"><button type="button" class="btn btn-back remove-pic">Hapus PIC</button></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <button type="button" class="btn btn-back mt-3" id="add-pic">Tambah PIC</button>
+
                         </div>
 
                     </div>
@@ -541,17 +541,31 @@
 
 </div>
 
+<template id="pic-entry-template">
+    <div class="card border mt-3 pic-entry" data-pic-index="__INDEX__">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 pic-entry-scope-wrapper" hidden>
+                    <label class="form-label fw-semibold">Jurusan yang ditangani PIC</label>
+                    <div class="pic-jurusan-select border border-warning rounded-3 bg-warning-subtle p-2" data-input-name="pics[__INDEX__][jurusan_keys][]"></div>
+                    <div class="form-text">Pilihan menampilkan nama mitra dan jurusan. Centang satu atau beberapa jurusan; beberapa PIC dapat ditambahkan pada jurusan yang sama. Pilih Seluruh Jurusan jika PIC menangani semuanya.</div>
+                </div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Nama PIC <span class="text-danger">*</span></label><input class="form-control" name="pics[__INDEX__][nama_pic]"></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Jabatan <span class="text-danger">*</span></label><input class="form-control" name="pics[__INDEX__][jabatan]"></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Email PIC</label><input type="email" class="form-control" name="pics[__INDEX__][email_pic]" maxlength="255"></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Nomor WhatsApp PIC <span class="text-danger">*</span></label><input class="form-control" name="pics[__INDEX__][no_whatsapp]" inputmode="numeric" maxlength="13" pattern="[0-9]{1,13}" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 13)"></div>
+                <div class="col-12 text-end"><button type="button" class="btn btn-back remove-pic">Hapus PIC</button></div>
+            </div>
+        </div>
+    </div>
+</template>
+
 
 <script>
 
 document.addEventListener(
     'DOMContentLoaded',
     function () {
-
-        const statusKontak =
-            document.getElementById(
-                'status_kontak'
-            );
 
         const formPIC =
             document.getElementById(
@@ -603,6 +617,130 @@ document.addEventListener(
                 'kategori_mitra_lainnya'
             );
 
+        const jurusanWrapper = document.getElementById('jurusan-wrapper');
+        const jurusanRows = document.getElementById('jurusan-rows');
+        const picJurusanScopeWrapper = document.getElementById('pic-jurusan-scope-wrapper');
+        const additionalPics = document.getElementById('additional-pics');
+        const picTemplate = document.getElementById('pic-entry-template');
+        let nextPicIndex = 0;
+        let nextPicJurusanOptionId = 0;
+        let nextJurusanIndex = Array.from(jurusanRows.querySelectorAll('.jurusan-row input[name]'))
+            .map(function (input) {
+                const match = input.name.match(/jurusans\[(\d+)\]/);
+                return match ? Number(match[1]) + 1 : 0;
+            })
+            .reduce(function (highest, index) { return Math.max(highest, index); }, 0);
+
+        function refreshPicJurusanOptions() {
+            const institutionName = document.querySelector('[name="nama_mitra"]').value.trim() || 'Mitra';
+            const isEducation = ['Sekolah', 'Perguruan Tinggi'].includes(kategoriMitra.value);
+            document.querySelectorAll('.pic-jurusan-select').forEach(function (options) {
+                const selectedKeys = Array.from(options.querySelectorAll('input:checked')).map(function (input) { return input.value; });
+                if (selectedKeys.length === 0 && options.dataset.selectedKeys) {
+                    selectedKeys.push(...options.dataset.selectedKeys.split(','));
+                    delete options.dataset.selectedKeys;
+                }
+                options.innerHTML = '';
+                const addOption = function (key, label) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'form-check';
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.className = 'form-check-input';
+                    input.id = 'pic-jurusan-option-' + nextPicJurusanOptionId++;
+                    input.name = options.dataset.inputName;
+                    input.value = key;
+                    input.checked = selectedKeys.includes(key);
+                    input.disabled = !isEducation;
+                    input.style.setProperty('--bs-form-check-checked-bg-color', '#f4ce00');
+                    input.style.setProperty('--bs-form-check-checked-border-color', '#f4ce00');
+                    const labelElement = document.createElement('label');
+                    labelElement.className = 'form-check-label';
+                    labelElement.htmlFor = input.id;
+                    labelElement.textContent = label;
+                    wrapper.append(input, labelElement);
+                    options.appendChild(wrapper);
+                };
+
+                addOption('__instansi__', institutionName + ' - Seluruh Jurusan');
+
+                jurusanRows.querySelectorAll('.jurusan-row').forEach(function (row) {
+                    const name = row.querySelector('[name$="[nama]"]');
+                    if (!name || name.value.trim() === '') {
+                        return;
+                    }
+                    addOption(row.dataset.jurusanKey, institutionName + ' - ' + name.value);
+                });
+            });
+            picJurusanScopeWrapper.hidden = !['Sekolah', 'Perguruan Tinggi'].includes(kategoriMitra.value);
+            document.querySelectorAll('.pic-entry-scope-wrapper').forEach(function (wrapper) {
+                wrapper.hidden = !['Sekolah', 'Perguruan Tinggi'].includes(kategoriMitra.value);
+            });
+        }
+
+        document.addEventListener('change', function (event) {
+            const checkbox = event.target.closest('.pic-jurusan-select input[type="checkbox"]');
+            if (!checkbox) {
+                return;
+            }
+            const options = checkbox.closest('.pic-jurusan-select');
+            if (checkbox.checked && checkbox.value === '__instansi__') {
+                options.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+                    input.checked = input === checkbox;
+                });
+            } else if (checkbox.checked) {
+                const allJurusans = options.querySelector('input[value="__instansi__"]');
+                if (allJurusans) {
+                    allJurusans.checked = false;
+                }
+            }
+            updatePICForm();
+        });
+
+        function updateJurusanForm() {
+            const isEducation = ['Sekolah', 'Perguruan Tinggi'].includes(kategoriMitra.value);
+            jurusanWrapper.hidden = !isEducation;
+            jurusanWrapper.querySelectorAll('input, select').forEach(function (field) {
+                field.disabled = !isEducation;
+            });
+            document.querySelectorAll('.pic-jurusan-select input[type="checkbox"]').forEach(function (input) { input.disabled = !isEducation; });
+            picJurusanScopeWrapper.hidden = !isEducation;
+            refreshPicJurusanOptions();
+        }
+        document.getElementById('add-jurusan').addEventListener('click', function () {
+            const index = nextJurusanIndex++;
+            const template = jurusanRows.querySelector('.jurusan-row').cloneNode(true);
+            template.dataset.jurusanKey = 'index:' + index;
+            template.querySelectorAll('input, select').forEach(function (field) {
+                field.value = '';
+                field.name = field.name.replace(/jurusans\[\d+\]/, 'jurusans[' + index + ']');
+            });
+            jurusanRows.appendChild(template);
+            refreshPicJurusanOptions();
+        });
+        document.getElementById('add-pic').addEventListener('click', function () {
+            const index = nextPicIndex++;
+            const entry = picTemplate.content.firstElementChild.cloneNode(true);
+            entry.innerHTML = entry.innerHTML.replaceAll('__INDEX__', String(index));
+            additionalPics.appendChild(entry);
+            refreshPicJurusanOptions();
+        });
+        additionalPics.addEventListener('click', function (event) {
+            if (event.target.closest('.remove-pic')) {
+                event.target.closest('.pic-entry').remove();
+            }
+        });
+        jurusanRows.addEventListener('click', function (event) {
+            if (event.target.closest('.remove-jurusan') && jurusanRows.querySelectorAll('.jurusan-row').length > 1) {
+                event.target.closest('.jurusan-row').remove();
+                refreshPicJurusanOptions();
+            }
+        });
+        jurusanRows.addEventListener('input', function () {
+            refreshPicJurusanOptions();
+        });
+        jurusanRows.addEventListener('change', refreshPicJurusanOptions);
+
         const requiredMarkers =
             document.querySelectorAll(
                 '.pic-required'
@@ -622,51 +760,19 @@ document.addEventListener(
 
         function updatePICForm() {
 
-            const isVerified =
-                statusKontak.value === 'Terverifikasi PIC';
-
             const hasPicDetails =
                 namaPIC.value.trim() !== ''
                 || jabatan.value.trim() !== ''
                 || noWhatsapp.value.trim() !== ''
                 || emailPIC.value.trim() !== '';
 
-            const hasMitraNumber =
-                noTelepon.value.trim() !== '';
+            picToggle.hidden = formPIC.style.display !== 'none';
 
-            const isUnreachable =
-                statusKontak.value === 'Tidak Dapat Dihubungi';
-
-            if (isUnreachable) {
-                formPIC.style.display = 'none';
-                picToggle.hidden = true;
-                picToggle.setAttribute('aria-expanded', 'false');
-            } else {
-                picToggle.hidden = formPIC.style.display !== 'none';
-            }
-
-            const isPicFormVisible =
-                formPIC.style.display !== 'none';
-            const requiresPicDetails =
-                !isUnreachable && hasPicDetails;
-
-            noWhatsapp.readOnly =
-                isVerified && hasMitraNumber && isPicFormVisible;
-
-            if (isVerified && hasMitraNumber && isPicFormVisible) {
-                noWhatsapp.value = noTelepon.value;
-            } else if (
-                isVerified
-                && !isPicFormVisible
-                && noWhatsapp.value === noTelepon.value
-            ) {
-                noWhatsapp.value = '';
-            }
+            const requiresPicDetails = hasPicDetails;
 
             namaPIC.required = requiresPicDetails;
             jabatan.required = requiresPicDetails;
-            noWhatsapp.required =
-                requiresPicDetails && (!isVerified || !hasMitraNumber);
+            noWhatsapp.required = requiresPicDetails;
 
             requiredMarkers.forEach(function (marker) {
                 marker.style.display =
@@ -687,41 +793,10 @@ document.addEventListener(
         );
 
 
-        statusKontak.addEventListener(
-            'change',
-            function () {
-                if (statusKontak.value === 'Tidak Dapat Dihubungi') {
-                    namaPIC.value = '';
-                    jabatan.value = '';
-                    emailPIC.value = '';
-                    noWhatsapp.value = '';
-                }
-
-                if (
-                    statusKontak.value !== 'Terverifikasi PIC'
-                    && noTelepon.value.trim() !== ''
-                    && noWhatsapp.value === noTelepon.value
-                ) {
-                    namaPIC.value = '';
-                    jabatan.value = '';
-                    emailPIC.value = '';
-                    noWhatsapp.value = '';
-                }
-
-                updatePICForm();
-            }
-        );
-
         noTelepon.addEventListener(
             'input',
             function () {
-                if (
-                    statusKontak.value === 'Terverifikasi PIC'
-                    && formPIC.style.display !== 'none'
-                ) {
-                    noWhatsapp.value = noTelepon.value;
-                }
-
+                refreshPicJurusanOptions();
                 updatePICForm();
             }
         );
@@ -731,8 +806,11 @@ document.addEventListener(
         });
 
         kategoriMitra.addEventListener('change', updateKategoriMitra);
+        kategoriMitra.addEventListener('change', updateJurusanForm);
+        document.querySelector('[name="nama_mitra"]').addEventListener('input', refreshPicJurusanOptions);
 
         updateKategoriMitra();
+        updateJurusanForm();
         updatePICForm();
 
     }

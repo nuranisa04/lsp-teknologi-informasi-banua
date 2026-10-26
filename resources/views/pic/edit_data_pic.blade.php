@@ -70,7 +70,12 @@
                     </label>
 
 
+                    @php
+                        $selectedPicJurusanId = old('id_jurusan', $pic->jurusans->first()?->id_jurusan);
+                    @endphp
+
                     <select
+                        id="pic-mitra-select"
                         name="id_mitra"
                         class="form-select"
                         required
@@ -85,26 +90,27 @@
                             $mitra as $item
                         )
 
-                            <option
-                                value="{{ $item->id_mitra }}"
-                                @selected(
-                                    old(
-                                        'id_mitra',
-                                        $pic->id_mitra
-                                    )
-                                    == $item->id_mitra
-                                )
-                            >
-
-                                {{
-                                    $item->nama_mitra
-                                }}
-
-                            </option>
+                            @if(in_array($item->bidang_usaha, ['Sekolah', 'Perguruan Tinggi'], true) && $item->jurusans->isNotEmpty())
+                                @foreach($item->jurusans as $jurusan)
+                                    <option
+                                        value="{{ $item->id_mitra }}"
+                                        data-id-jurusan="{{ $jurusan->id_jurusan }}"
+                                        @selected(old('id_mitra', $pic->id_mitra) == $item->id_mitra && $selectedPicJurusanId == $jurusan->id_jurusan)
+                                    >{{ $item->nama_mitra }} - {{ $jurusan->nama_jurusan }}</option>
+                                @endforeach
+                            @else
+                                <option
+                                    value="{{ $item->id_mitra }}"
+                                    @selected(old('id_mitra', $pic->id_mitra) == $item->id_mitra)
+                                >{{ $item->nama_mitra }}</option>
+                            @endif
 
                         @endforeach
 
                     </select>
+
+                    <input type="hidden" name="id_jurusan" id="pic-jurusan-id" value="{{ $selectedPicJurusanId }}">
+                    <input type="hidden" name="jurusan_changed" id="pic-jurusan-changed" value="{{ old('jurusan_changed', '0') }}">
 
                 </div>
 
@@ -313,5 +319,12 @@
     </div>
 
 </div>
+
+<script>
+    document.getElementById('pic-mitra-select').addEventListener('change', function () {
+        document.getElementById('pic-jurusan-id').value = this.selectedOptions[0]?.dataset.idJurusan ?? '';
+        document.getElementById('pic-jurusan-changed').value = '1';
+    });
+</script>
 
 @endsection

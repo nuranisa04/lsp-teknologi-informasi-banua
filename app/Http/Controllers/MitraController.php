@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MitraController extends Controller
@@ -15,14 +16,6 @@ class MitraController extends Controller
         'Calon',
         'Aktif',
         'Tidak Aktif',
-    ];
-
-    private const STATUS_KONTAK = [
-        'Belum Diverifikasi',
-        'Kontak Mitra',
-        'Terverifikasi PIC',
-        'Bukan PIC',
-        'Tidak Dapat Dihubungi',
     ];
 
     private function adminOnly(): void
@@ -43,6 +36,7 @@ class MitraController extends Controller
     {
         $filters = $this->validatedFilters($request);
         $query = $this->filteredMitraQuery($filters);
+        $query->with('jurusans:id_jurusan,id_mitra,nama_jurusan');
 
         if ($request->user()->isPimpinan()) {
             $query->with('user:id_user,nama');
@@ -94,7 +88,6 @@ class MitraController extends Controller
                     'Email',
                     'Nomor Kontak',
                     'Sumber Data',
-                    'Status Kontak',
                     'Status Mitra',
                     'Diinput Oleh',
                 ], ';', '"', '');
@@ -107,7 +100,6 @@ class MitraController extends Controller
                         $this->spreadsheetSafeValue($mitra->email ?? ''),
                         $this->spreadsheetSafeValue($mitra->no_telepon ?? ''),
                         $this->spreadsheetSafeValue($mitra->sumber_data ?? ''),
-                        $this->spreadsheetSafeValue($mitra->status_kontak ?? ''),
                         $this->spreadsheetSafeValue($mitra->status),
                         $this->spreadsheetSafeValue($mitra->user?->nama ?? 'Tidak tercatat'),
                     ], ';', '"', '');
@@ -121,23 +113,19 @@ class MitraController extends Controller
     }
 
     /**
-     * @return array{search?: string|null, status?: string|null, status_kontak?: string|null, bidang_usaha?: string|null}
+     * @return array{search?: string|null, status?: string|null, bidang_usaha?: string|null}
      */
     private function validatedFilters(Request $request): array
     {
         return $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(self::STATUS_MITRA)],
-            'status_kontak' => [
-                'nullable',
-                Rule::in([...self::STATUS_KONTAK, '__kosong__']),
-            ],
             'bidang_usaha' => ['nullable', 'string', 'max:255'],
         ]);
     }
 
     /**
-     * @param  array{search?: string|null, status?: string|null, status_kontak?: string|null, bidang_usaha?: string|null}  $filters
+     * @param  array{search?: string|null, status?: string|null, bidang_usaha?: string|null}  $filters
      */
     private function filteredMitraQuery(array $filters): Builder
     {
@@ -154,21 +142,10 @@ class MitraController extends Controller
             });
         }
 
-        if (($filters['status_kontak'] ?? null) === '__kosong__') {
-            $query->whereNull('status_kontak');
-        }
-
         foreach (['status', 'bidang_usaha'] as $column) {
             if (filled($filters[$column] ?? null)) {
                 $query->where($column, $filters[$column]);
             }
-        }
-
-        if (
-            filled($filters['status_kontak'] ?? null)
-            && $filters['status_kontak'] !== '__kosong__'
-        ) {
-            $query->where('status_kontak', $filters['status_kontak']);
         }
 
         return $query;
@@ -202,6 +179,7 @@ class MitraController extends Controller
     {
         $mitra->load([
             'pics',
+            'jurusans.pics',
             'user:id_user,nama',
         ]);
 
@@ -261,7 +239,8 @@ class MitraController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $this->syncPic($mitra, $data);
+            $data['resolved_pic_jurusan_ids'] = $this->syncJurusans($mitra, $data);
+            $this->syncPics($mitra, $data);
 
         });
 
@@ -285,7 +264,7 @@ class MitraController extends Controller
 
         $this->adminOnly();
 
-        $mitra->load('pics');
+        $mitra->load(['pics.jurusans', 'jurusans.pics']);
 
         return view(
             'mitra.edit_data_mitra',
@@ -335,12 +314,13 @@ class MitraController extends Controller
                 'sumber_data' => $data['sumber_data']
                     ?? null,
 
-                'status_kontak' => $data['status_kontak'] ?? null,
+                'status_kontak' => $data['status_kontak'] ?? $mitra->status_kontak,
 
                 'status' => $data['status'],
             ]);
 
-            $this->syncPic($mitra, $data);
+            $data['resolved_pic_jurusan_ids'] = $this->syncJurusans($mitra, $data);
+            $this->syncPics($mitra, $data);
 
         });
 
@@ -450,17 +430,6 @@ class MitraController extends Controller
                 'max:255',
             ],
 
-            'status_kontak' => [
-                'nullable',
-                Rule::in([
-                    'Belum Diverifikasi',
-                    'Kontak Mitra',
-                    'Terverifikasi PIC',
-                    'Bukan PIC',
-                    'Tidak Dapat Dihubungi',
-                ]),
-            ],
-
             'status' => [
                 'required',
                 Rule::in([
@@ -498,13 +467,27 @@ class MitraController extends Controller
                 'nullable',
                 'regex:/\A[0-9]{1,13}\z/',
             ],
+            'pic_id' => ['nullable', 'integer'],
+            'pic_jurusan_keys' => ['nullable', 'array'],
+            'pic_jurusan_keys.*' => ['string', 'max:255'],
+            'pics_present' => ['nullable', 'boolean'],
+            'pics' => ['nullable', 'array'],
+            'pics.*.id' => ['nullable', 'integer'],
+            'pics.*.nama_pic' => ['nullable', 'string', 'max:255'],
+            'pics.*.jabatan' => ['nullable', 'string', 'max:255'],
+            'pics.*.email_pic' => ['nullable', 'email', 'max:255'],
+            'pics.*.no_whatsapp' => ['nullable', 'regex:/\A[0-9]{1,13}\z/'],
+            'pics.*.jurusan_keys' => ['nullable', 'array'],
+            'pics.*.jurusan_keys.*' => ['string', 'max:255'],
+            'jurusans' => ['nullable', 'array'],
+            'jurusans_present' => ['nullable', 'boolean'],
+            'jurusans.*.id' => ['nullable', 'integer'],
+            'jurusans.*.nama' => ['nullable', 'string', 'max:255'],
+            'jurusans.*.no_telepon' => ['nullable', 'regex:/\A[0-9]{1,13}\z/'],
 
         ];
 
-        $isUnreachable = $request->input('status_kontak')
-            === 'Tidak Dapat Dihubungi';
-
-        $requiresPicDetails = ! $isUnreachable && collect([
+        $requiresPicDetails = collect([
             'nama_pic',
             'jabatan',
             'email_pic',
@@ -515,12 +498,7 @@ class MitraController extends Controller
             $rules['nama_pic'][] = 'required';
             $rules['jabatan'][] = 'required';
 
-            if (
-                $request->input('status_kontak') !== 'Terverifikasi PIC'
-                || ! $request->filled('no_telepon')
-            ) {
-                $rules['no_whatsapp_pic'][] = 'required';
-            }
+            $rules['no_whatsapp_pic'][] = 'required';
         }
 
         $messages = [
@@ -534,6 +512,59 @@ class MitraController extends Controller
 
         $data = $request->validate($rules, $messages);
 
+        $legacyPic = [
+            'id' => $data['pic_id'] ?? null,
+            'nama_pic' => $data['nama_pic'] ?? null,
+            'jabatan' => $data['jabatan'] ?? null,
+            'email_pic' => $data['email_pic'] ?? null,
+            'no_whatsapp' => $data['no_whatsapp_pic'] ?? null,
+            'jurusan_keys' => $data['pic_jurusan_keys'] ?? [],
+        ];
+        $additionalPicRows = $data['pics'] ?? [];
+        $hasLegacyPic = collect($legacyPic)->except('jurusan_keys')->contains(fn ($value): bool => filled($value));
+
+        foreach ($additionalPicRows as $rowIndex => $picRow) {
+            if (! is_array($picRow)) {
+                continue;
+            }
+
+            $hasPicDetails = collect(['nama_pic', 'jabatan', 'email_pic', 'no_whatsapp'])
+                ->contains(fn (string $field): bool => filled($picRow[$field] ?? null));
+            if (! $hasPicDetails) {
+                continue;
+            }
+
+            foreach (['nama_pic' => 'Nama PIC', 'jabatan' => 'Jabatan PIC'] as $field => $label) {
+                if (! filled($picRow[$field] ?? null)) {
+                    throw ValidationException::withMessages([
+                        "pics.{$rowIndex}.{$field}" => "{$label} wajib diisi jika data PIC dilengkapi.",
+                    ]);
+                }
+            }
+
+            if (! filled($picRow['no_whatsapp'] ?? null)) {
+                throw ValidationException::withMessages([
+                    "pics.{$rowIndex}.no_whatsapp" => 'Nomor WhatsApp PIC wajib diisi.',
+                ]);
+            }
+        }
+
+        $data['pic_rows'] = $hasLegacyPic
+            ? array_merge([$legacyPic], array_values($additionalPicRows))
+            : array_values($additionalPicRows);
+
+        foreach ($request->input('jurusans', []) as $rowIndex => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            if (filled($row['no_telepon'] ?? null) && ! filled($row['nama'] ?? null)) {
+                throw ValidationException::withMessages([
+                    "jurusans.{$rowIndex}.nama" => 'Nama jurusan wajib diisi jika nomor kontak jurusan diisi.',
+                ]);
+            }
+        }
+
         $data['bidang_usaha'] = $data['kategori_mitra'] === 'Lainnya'
             ? $data['kategori_mitra_lainnya']
             : $data['kategori_mitra'];
@@ -546,62 +577,171 @@ class MitraController extends Controller
         return $data;
     }
 
+    /** @param array<string, mixed> $data */
+    private function syncJurusans(Mitra $mitra, array $data): array
+    {
+        if (! in_array($data['bidang_usaha'], ['Sekolah', 'Perguruan Tinggi'], true)) {
+            return [];
+        }
+
+        $submittedJurusanIds = [];
+        $resolvedJurusanIds = [];
+
+        foreach ($data['jurusans'] ?? [] as $rowIndex => $row) {
+            if (! filled($row['nama'] ?? null)) {
+                continue;
+            }
+
+            $jurusan = null;
+            if (filled($row['id'] ?? null)) {
+                $jurusan = $mitra->jurusans()->find($row['id']);
+                abort_unless($jurusan, 404);
+            }
+
+            $jurusanNumber = $row['no_telepon'] ?? null;
+
+            $attributes = [
+                'nama_jurusan' => $row['nama'],
+                'no_telepon' => $jurusanNumber,
+                'jenis_kontak' => 'Kontak Jurusan',
+            ];
+            if ($jurusan) {
+                $jurusan->update($attributes);
+            } else {
+                $jurusan = $mitra->jurusans()->create($attributes);
+            }
+
+            $submittedJurusanIds[] = $jurusan->id_jurusan;
+            $resolvedJurusanIds[filled($row['id'] ?? null) ? 'id:'.$jurusan->id_jurusan : 'index:'.$rowIndex] = $jurusan->id_jurusan;
+
+        }
+
+        if (array_key_exists('jurusans_present', $data)) {
+            $mitra->jurusans()
+                ->when($submittedJurusanIds !== [], fn ($query) => $query->whereNotIn('id_jurusan', $submittedJurusanIds))
+                ->when($submittedJurusanIds === [], fn ($query) => $query)
+                ->get()
+                ->each(function ($jurusan): void {
+                    $jurusan->delete();
+                });
+        }
+
+        return $resolvedJurusanIds;
+    }
+
     /**
      * Save PIC data without replacing the mitra's initially discovered number.
      *
      * @param  array<string, mixed>  $data
      */
-    private function syncPic(Mitra $mitra, array $data): void
+    private function syncPics(Mitra $mitra, array $data): void
     {
         $statusKontak = $data['status_kontak'] ?? null;
-        if ($statusKontak === 'Tidak Dapat Dihubungi') {
-            return;
-        }
+        $hasContactStatus = array_key_exists('status_kontak', $data);
+        $jurusanStatus = $statusKontak === 'Tidak Dapat Dihubungi'
+            ? 'Tidak Dapat Dihubungi'
+            : ($statusKontak ?? 'Belum Diverifikasi');
+        $resolvedJurusanIds = $data['resolved_pic_jurusan_ids'] ?? [];
+        $submittedPicIds = [];
+        $picRows = $data['pic_rows'] ?? [];
 
-        $isVerifiedNumber = $statusKontak === 'Terverifikasi PIC'
-            && filled($data['no_telepon'] ?? null)
-            && isset($data['nama_pic'], $data['jabatan']);
-        $isAlternatePicProvided = isset(
-            $data['nama_pic'],
-            $data['jabatan'],
-            $data['no_whatsapp_pic'],
-        );
+        foreach ($picRows as $picRow) {
+            if (! is_array($picRow)) {
+                continue;
+            }
 
-        if (! $isVerifiedNumber && ! $isAlternatePicProvided) {
-            if (
-                $statusKontak === 'Bukan PIC'
-                && filled($data['no_telepon'] ?? null)
-            ) {
-                $pic = $mitra->pics()
-                    ->where('no_whatsapp', $data['no_telepon'])
-                    ->first();
+            $pic = filled($picRow['id'] ?? null)
+                ? $mitra->pics()->find($picRow['id'])
+                : null;
+            abort_unless(! filled($picRow['id'] ?? null) || $pic, 404);
 
-                if ($pic) {
-                    $pic->delete();
-                    $mitra->syncContactStatusFromPics();
+            $selectedKeys = collect($picRow['jurusan_keys'] ?? [])->unique()->values();
+            $selectsAllJurusans = $selectedKeys->contains('__instansi__');
+            $selectedDepartmentKeys = $selectedKeys
+                ->reject(fn (string $key): bool => $key === '__instansi__')
+                ->map(function (string $key) use ($resolvedJurusanIds): int {
+                    abort_unless(isset($resolvedJurusanIds[$key]), 422);
+
+                    return (int) $resolvedJurusanIds[$key];
+                })
+                ->unique()
+                ->values();
+            abort_unless(! $selectsAllJurusans || $selectedDepartmentKeys->isEmpty(), 422);
+            $jurusanIds = $selectsAllJurusans
+                ? $mitra->jurusans()->pluck('id_jurusan')->map(fn ($id): int => (int) $id)->values()
+                : $selectedDepartmentKeys;
+            $jurusans = $mitra->jurusans()->whereIn('id_jurusan', $jurusanIds)->get();
+            abort_unless($jurusans->count() === $jurusanIds->count(), 404);
+
+            if ($hasContactStatus) {
+                foreach ($jurusans as $jurusan) {
+                    $jurusan->update(['status_kontak' => $jurusanStatus]);
                 }
             }
 
-            return;
+            if ($statusKontak === 'Tidak Dapat Dihubungi') {
+                if ($pic) {
+                    $submittedPicIds[] = $pic->id_pic;
+                }
+
+                continue;
+            }
+
+            if ($statusKontak === 'Bukan PIC') {
+                if ($pic && ($jurusanIds->isNotEmpty() || $selectsAllJurusans)) {
+                    $pic->jurusans()->detach($jurusanIds->all());
+                    $submittedPicIds[] = $pic->id_pic;
+                }
+
+                continue;
+            }
+
+            $picNumber = $picRow['no_whatsapp'] ?? null;
+            $hasPicDetails = collect(['nama_pic', 'jabatan', 'email_pic', 'no_whatsapp'])
+                ->contains(fn (string $field): bool => filled($picRow[$field] ?? null));
+
+            if (! $hasPicDetails) {
+                if ($pic) {
+                    $submittedPicIds[] = $pic->id_pic;
+                }
+
+                continue;
+            }
+
+            if (! $picNumber) {
+                continue;
+            }
+
+            $attributes = [
+                'nama_pic' => $picRow['nama_pic'],
+                'jabatan' => $picRow['jabatan'],
+                'email' => $picRow['email_pic'] ?? null,
+                'no_whatsapp' => $picNumber,
+                'status' => $pic?->status ?? 'Aktif',
+            ];
+            if ($pic) {
+                $pic->update($attributes);
+            } else {
+                $pic = $mitra->pics()->create($attributes);
+            }
+            $submittedPicIds[] = $pic->id_pic;
+
+            if (
+                array_key_exists('jurusan_keys', $picRow)
+                && in_array($data['bidang_usaha'], ['Sekolah', 'Perguruan Tinggi'], true)
+            ) {
+                $pic->jurusans()->sync($jurusanIds->mapWithKeys(fn (int $id): array => [
+                    $id => $hasContactStatus ? ['status_kontak' => $jurusanStatus] : [],
+                ])->all());
+            }
         }
 
-        $pic = $mitra->pics()->first();
-        $attributes = [
-            'nama_pic' => $data['nama_pic'],
-            'jabatan' => $data['jabatan'],
-            'email' => $data['email_pic'] ?? null,
-            'no_whatsapp' => $isVerifiedNumber
-                ? $data['no_telepon']
-                : $data['no_whatsapp_pic'],
-            'status' => 'Aktif',
-        ];
-
-        if ($pic) {
-            $pic->update($attributes);
-
-            return;
+        if (array_key_exists('pics_present', $data)) {
+            $mitra->pics()
+                ->when($submittedPicIds !== [], fn ($query) => $query->whereNotIn('id_pic', $submittedPicIds))
+                ->when($submittedPicIds === [], fn ($query) => $query)
+                ->get()
+                ->each(fn ($pic) => $pic->delete());
         }
-
-        $mitra->pics()->create($attributes);
     }
 }

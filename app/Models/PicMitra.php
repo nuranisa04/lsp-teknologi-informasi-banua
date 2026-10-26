@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class PicMitra extends Model
 {
@@ -27,5 +28,10 @@ class PicMitra extends Model
             'id_mitra',
             'id_mitra'
         );
+    }
+
+    public function jurusans(): BelongsToMany
+    {
+        return $this->belongsToMany(Jurusan::class, 'jurusan_pic', 'id_pic', 'id_jurusan');
     }
 }

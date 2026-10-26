@@ -67,7 +67,7 @@
             display: block;
             margin-bottom: 4px;
             color: rgba(255, 255, 255, .68);
-            font-size: 15px;
+            font-size: 17px;
             font-weight: 700;
             letter-spacing: .07em;
             text-transform: uppercase;
@@ -152,7 +152,7 @@
 
         .showcase-title {
             margin: 0 0 16px;
-            font-size: clamp(34px, 4vw, 48px);
+            font-size: clamp(32px, 3.8vw, 44px);
             font-weight: 800;
             letter-spacing: -.04em;
             line-height: 1.08;
@@ -277,7 +277,7 @@
 
             .showcase-title {
                 max-width: 460px;
-                font-size: 36px;
+                font-size: 34px;
             }
 
             .showcase-description {
@@ -303,7 +303,7 @@
             }
 
             .showcase-title {
-                font-size: 31px;
+                font-size: 29px;
             }
 
             .showcase-brand {
@@ -322,7 +322,7 @@
             }
 
             .showcase-brand-caption {
-                font-size: 13px;
+                font-size: 15px;
             }
 
             .showcase-description {
@@ -390,7 +390,7 @@
                                     id="email"
                                     name="email"
                                     class="form-control"
-                                    placeholder="nama@email.com"
+                                    placeholder="nama@gmail.com"
                                     value="{{ old('email') }}"
                                     autocomplete="email"
                                     required

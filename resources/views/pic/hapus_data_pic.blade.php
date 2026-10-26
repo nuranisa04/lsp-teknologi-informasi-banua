@@ -99,28 +99,6 @@
 
 
                 <div
-                    class="alert alert-warning text-start"
-                >
-
-                    <strong>
-                        Perhatian:
-                    </strong>
-
-                    @if($statusKontakAfterDeletion === 'Bukan PIC')
-                        status nomor kontak mitra sudah ditetapkan sebagai
-                        <strong>Bukan PIC</strong> dan tidak akan berubah.
-                    @elseif($statusKontakAfterDeletion === 'Terverifikasi PIC')
-                        masih ada PIC lain yang terdaftar. Status kontak mitra
-                        akan tetap <strong>Terverifikasi PIC</strong>.
-                    @else
-                        tidak ada PIC lain yang tersisa. Status kontak mitra
-                        akan menjadi <strong>Belum Diverifikasi</strong>.
-                    @endif
-
-                </div>
-
-
-                <div
                     class="d-flex justify-content-center gap-2 mt-4"
                 >
 

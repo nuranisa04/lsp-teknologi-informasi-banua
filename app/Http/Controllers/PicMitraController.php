@@ -26,9 +26,10 @@ class PicMitraController extends Controller
 
     public function index(Request $request)
     {
-        $query = PicMitra::with(
-            'mitra'
-        );
+        $query = PicMitra::with([
+            'mitra',
+            'jurusans:id_jurusan,nama_jurusan',
+        ]);
 
         if ($request->filled('search')) {
 
@@ -89,9 +90,9 @@ class PicMitraController extends Controller
     {
         $this->adminOnly();
 
-        $mitra = Mitra::orderBy(
-            'nama_mitra'
-        )->get();
+        $mitra = Mitra::with('jurusans')
+            ->orderBy('nama_mitra')
+            ->get();
 
         return view(
             'pic.tambah_data_pic',
@@ -119,7 +120,7 @@ class PicMitraController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            PicMitra::create([
+            $pic = PicMitra::create([
                 'id_mitra' => $data['id_mitra'],
                 'nama_pic' => $data['nama_pic'],
                 'jabatan' => $data['jabatan'],
@@ -127,6 +128,10 @@ class PicMitraController extends Controller
                 'no_whatsapp' => $data['no_whatsapp'],
                 'status' => $data['status'],
             ]);
+
+            if (filled($data['id_jurusan'] ?? null)) {
+                $pic->jurusans()->sync([$data['id_jurusan']]);
+            }
 
             $mitra->syncContactStatusFromPics();
         });
@@ -151,9 +156,10 @@ class PicMitraController extends Controller
 
         $this->adminOnly();
 
-        $mitra = Mitra::orderBy(
-            'nama_mitra'
-        )->get();
+        $mitra = Mitra::with('jurusans')
+            ->orderBy('nama_mitra')
+            ->get();
+        $pic->load('jurusans');
 
         return view(
             'pic.edit_data_pic',
@@ -213,6 +219,12 @@ class PicMitraController extends Controller
                 'status' => $data['status'],
             ]);
 
+            if ($mitraChanged || ($data['jurusan_changed'] ?? false)) {
+                $pic->jurusans()->sync(
+                    filled($data['id_jurusan'] ?? null) ? [$data['id_jurusan']] : []
+                );
+            }
+
             if ($mitraChanged) {
                 $previousMitra->syncContactStatusFromPics();
                 $nextMitra->syncContactStatusFromPics();
@@ -240,11 +252,10 @@ class PicMitraController extends Controller
         $this->adminOnly();
 
         $pic->load('mitra');
-        $statusKontakAfterDeletion = $pic->mitra->contactStatusFromPics($pic);
 
         return view(
             'pic.hapus_data_pic',
-            compact('pic', 'statusKontakAfterDeletion')
+            compact('pic')
         );
     }
 
@@ -298,6 +309,16 @@ class PicMitraController extends Controller
                 'exists:data_mitra,id_mitra',
 
             ],
+
+            'id_jurusan' => [
+                'nullable',
+                'integer',
+                Rule::exists('jurusan_mitra', 'id_jurusan')->where(
+                    fn ($query) => $query->where('id_mitra', $request->input('id_mitra'))
+                ),
+            ],
+
+            'jurusan_changed' => ['sometimes', 'boolean'],
 
             'nama_pic' => [
 

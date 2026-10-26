@@ -164,9 +164,9 @@
 
         .brand-logo {
 
-            width: 66px;
+            width: min(340px, calc(100vw - 32px));
 
-            height: 66px;
+            height: 78px;
 
             flex-shrink: 0;
 
@@ -195,6 +195,8 @@
             height: 100%;
 
             object-fit: contain;
+
+            object-position: left center;
 
             display: block;
 
@@ -258,125 +260,131 @@
         */
 
         .sidebar-menu {
-
-            padding:
-                20px 0;
-
-            padding-bottom:
-                180px;
-
+            padding: 18px 0;
+            padding-bottom: 120px;
         }
-
 
         .sidebar-menu-title {
-
-            padding:
-                8px 22px;
-
-            font-size:
-                11px;
-
-            color:
-                rgba(255,255,255,.52);
-
-            text-transform:
-                uppercase;
-
-            letter-spacing:
-                .8px;
-
-            font-weight:
-                700;
-
+            padding: 8px 22px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, .4);
+            text-transform: uppercase;
+            letter-spacing: 1.3px;
+            display: flex;
+            align-items: center;
         }
-
 
         .sidebar .nav-link {
-
             display: flex;
-
             align-items: center;
-
-            color:
-                rgba(255,255,255,.84);
-
-            margin:
-                5px 12px;
-
-            padding:
-                12px 14px;
-
-            border-radius:
-                10px;
-
-            text-decoration:
-                none;
-
-            transition:
-                background-color .2s ease,
-                color .2s ease,
-                transform .2s ease;
-
+            gap: 14px;
+            color: rgba(255, 255, 255, .78);
+            margin: 5px 14px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            text-decoration: none;
+            position: relative;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: .1px;
+            transition: background-color .2s ease, color .2s ease, transform .2s ease, box-shadow .2s ease;
         }
 
+        .sidebar-menu > .nav-link + .nav-link::before {
+            position: absolute;
+            top: -6px;
+            right: 16px;
+            left: 16px;
+            height: 1px;
+            background: rgba(255, 255, 255, .12);
+            content: "";
+        }
 
+        /* Ikon Modern Bersih (SVG & Icon) Tanpa Kotak */
+        .sidebar .nav-link .nav-icon-svg,
+        .sidebar .nav-link svg,
         .sidebar .nav-link i {
-
-            width:
-                24px;
-
-            font-size:
-                18px;
-
-            opacity:
-                .88;
-
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            flex: 0 0 24px;
+            font-size: 20px;
+            color: rgba(255, 255, 255, .62);
+            stroke: rgba(255, 255, 255, .62);
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            line-height: 1;
+            transition: color .2s ease, stroke .2s ease, transform .2s ease;
         }
 
+        .sidebar .nav-link .nav-text,
+        .sidebar .nav-link > span:not(.nav-icon) {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
 
         .sidebar .nav-link:hover {
-
-            background:
-                rgba(255,255,255,.09);
-
-            color:
-                var(--white);
-
-            transform:
-                translateX(2px);
-
+            background: rgba(255, 255, 255, .08);
+            color: #ffffff;
+            transform: translateX(3px);
         }
 
+        .sidebar .nav-link:hover .nav-icon-svg,
+        .sidebar .nav-link:hover svg,
+        .sidebar .nav-link:hover i {
+            color: var(--yellow);
+            stroke: var(--yellow);
+            transform: scale(1.12);
+        }
 
+        /* Menu Aktif: Tombol Kuning Modern Bersih Tanpa Kotak */
         .sidebar .nav-link.active {
-
-            background:
-                linear-gradient(
-                    110deg,
-                    var(--yellow),
-                    #F7D94C
-                );
-
-            color:
-                var(--navy);
-
-            font-weight:
-                700;
-
-            box-shadow:
-                0 7px 18px
-                rgba(242,200,17,.2),
-                inset 3px 0 0
-                rgba(255,255,255,.6);
-
+            background: linear-gradient(135deg, #FCD34D 0%, #F4CD00 100%);
+            color: #18181B;
+            font-weight: 700;
+            box-shadow: 0 4px 16px -2px rgba(244, 205, 0, .35);
+            transform: none;
         }
 
-
+        .sidebar .nav-link.active .nav-icon-svg,
+        .sidebar .nav-link.active svg,
         .sidebar .nav-link.active i {
+            color: #18181B !important;
+            stroke: #18181B !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
 
-            color:
-                var(--navy);
+        .sidebar .nav-link.active .nav-text,
+        .sidebar .nav-link.active > span:not(.nav-icon) {
+            color: #18181B;
+            font-weight: 700;
+        }
 
+        .sidebar .nav-link.active:hover {
+            background: linear-gradient(135deg, #FBD53D 0%, #F4CD00 100%);
+            color: #18181B;
+            transform: none;
+        }
+
+        .sidebar .nav-link.active:hover .nav-icon-svg,
+        .sidebar .nav-link.active:hover svg,
+        .sidebar .nav-link.active:hover i {
+            color: #18181B !important;
+            stroke: #18181B !important;
+            transform: none !important;
         }
 
 
@@ -1905,6 +1913,10 @@
 
             }
 
+            .sidebar-menu > .nav-link + .nav-link::before {
+                content: none;
+            }
+
 
             .sidebar-user {
 
@@ -2245,84 +2257,18 @@
             content: none;
         }
 
-        .sidebar-menu {
-            padding-top: 22px;
-        }
-
-        .sidebar-menu-title {
-            color: rgba(255, 255, 255, .52);
-        }
-
-        .sidebar .nav-link {
-            color: rgba(255, 255, 255, .84);
-        }
-
-        .sidebar .nav-link:hover {
-            background: rgba(255, 255, 255, .09);
-            color: #fff;
-        }
-
-        .sidebar .nav-link.active {
-            background: var(--yellow);
-            color: #202020;
-        }
-
         .brand-wrapper {
-            width: max-content;
+            width: 100%;
             min-width: 0;
-            flex: 0 0 auto;
-            gap: 6px;
+            flex: 1 1 auto;
+            justify-content: flex-start;
+            gap: 0;
         }
 
         .brand-logo {
-            width: 56px;
-            height: 64px;
-            flex: 0 0 56px;
-        }
-
-        .brand-text {
-            display: flex;
-            min-width: max-content;
-            flex: 0 0 auto;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0;
-            line-height: 1;
-            overflow: visible;
-        }
-
-        .brand-kicker {
-            margin: 0;
-            color: #252525;
-            font-family: "Arial Narrow", Arial, sans-serif;
-            font-size: 12px;
-            font-stretch: condensed;
-            font-weight: 700;
-            letter-spacing: -.02em;
-            line-height: 1;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .brand-title {
-            margin: 0;
-            color: #111;
-            font-family: Impact, "Arial Narrow", Arial, sans-serif;
-            font-size: 19px;
-            font-stretch: condensed;
-            font-weight: 400;
-            letter-spacing: 0;
-            line-height: 1;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .brand-title::before {
-            display: block;
-            margin: 3px 0 3px;
-            border-top: 3px solid #111;
-            border-radius: 3px;
-            content: "";
+            width: min(310px, calc(100vw - 32px));
+            height: 70px;
+            flex: 0 1 310px;
         }
 
         @media (max-width: 991px) {
@@ -2350,10 +2296,6 @@
             justify-content: flex-end;
         }
 
-        .sidebar .nav-link.active i {
-            color: #202020;
-        }
-
         .sidebar-user {
             display: block;
             background: rgba(12, 12, 12, .72);
@@ -2378,15 +2320,25 @@
         }
 
         .logout-button .btn-outline-light {
-            border-color: rgba(255, 255, 255, .36);
-            border-radius: 8px;
-            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border: 1px solid rgba(255, 255, 255, .15);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .04);
+            color: rgba(255, 255, 255, .82);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all .2s ease;
         }
 
         .logout-button .btn-outline-light:hover {
-            border-color: var(--yellow);
-            background: var(--yellow);
-            color: #202020;
+            border-color: rgba(239, 68, 68, .4);
+            background: rgba(239, 68, 68, .15);
+            color: #fca5a5;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, .2);
         }
 
         .main {
@@ -2674,16 +2626,9 @@
 
             <div class="brand-logo">
                 <img
-                    src="{{ asset('images/Logo-LSP-TIB.png') }}"
+                    src="{{ asset('images/logo-lsp-tib-panjang.png') }}"
                     alt="Logo LSP P3 Teknologi Informasi Banua"
                 >
-            </div>
-
-            <div class="brand-text">
-                <p class="brand-kicker">Lembaga Sertifikasi Profesi</p>
-                <p class="brand-title">
-                    Teknologi Informasi Banua
-                </p>
             </div>
 
         </div>
@@ -2705,84 +2650,50 @@
         <div class="sidebar-menu">
 
 
-            <div class="sidebar-menu-title">
-                Menu Utama
-            </div>
-
-
             {{-- DASHBOARD --}}
             <a
                 href="{{ route('dashboard') }}"
-                class="nav-link
-                    {{ request()->routeIs('dashboard')
-                        ? 'active'
-                        : '' }}"
+                class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"
             >
-
-                <i class="bi bi-grid-1x2-fill me-2"></i>
-
-                <span>
-                    Dashboard
-                </span>
-
+                <i class="bi bi-grid-1x2-fill" aria-hidden="true"></i>
+                <span class="nav-text">Dashboard</span>
             </a>
 
+            <div class="sidebar-menu-title">
+                Data
+            </div>
 
             {{-- DATA MITRA --}}
             <a
                 href="{{ route('mitra.index') }}"
-                class="nav-link
-                    {{ request()->routeIs('mitra.*')
-                        ? 'active'
-                        : '' }}"
+                class="nav-link {{ request()->routeIs('mitra.*') ? 'active' : '' }}"
             >
-
-                <i class="bi bi-building me-2"></i>
-
-                <span>
-                    Data Mitra
-                </span>
-
+                <i class="bi bi-buildings-fill" aria-hidden="true"></i>
+                <span class="nav-text">Data Mitra</span>
             </a>
-
 
             {{-- DATA PIC --}}
             <a
                 href="{{ route('pic.index') }}"
-                class="nav-link
-                    {{ request()->routeIs('pic.*')
-                        ? 'active'
-                        : '' }}"
+                class="nav-link {{ request()->routeIs('pic.*') ? 'active' : '' }}"
             >
-
-                <i class="bi bi-person-badge me-2"></i>
-
-                <span>
-                    Data PIC
-                </span>
-
+                <i class="bi bi-person-vcard-fill" aria-hidden="true"></i>
+                <span class="nav-text">Data PIC</span>
             </a>
-
 
             {{-- PENGGUNA --}}
             @if(auth()->user()->isAdmin())
+                <div class="sidebar-menu-title">
+                    Manajemen
+                </div>
 
                 <a
                     href="{{ route('users.index') }}"
-                    class="nav-link
-                        {{ request()->routeIs('users.*')
-                            ? 'active'
-                            : '' }}"
+                    class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"
                 >
-
-                    <i class="bi bi-people me-2"></i>
-
-                    <span>
-                        Pengguna
-                    </span>
-
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    <span class="nav-text">Pengguna</span>
                 </a>
-
             @endif
 
         </div>

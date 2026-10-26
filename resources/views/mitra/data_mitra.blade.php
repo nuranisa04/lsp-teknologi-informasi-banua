@@ -96,35 +96,6 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="export-mitra-status-kontak" class="form-label">
-                            Status Kontak
-                        </label>
-                        <select
-                            name="status_kontak"
-                            id="export-mitra-status-kontak"
-                            class="form-select"
-                        >
-                            <option value="">Semua Status Kontak</option>
-                            @foreach ([
-                                'Belum Diverifikasi',
-                                'Kontak Mitra',
-                                'Terverifikasi PIC',
-                                'Bukan PIC',
-                                'Tidak Dapat Dihubungi',
-                            ] as $statusKontak)
-                                <option
-                                    value="{{ $statusKontak }}"
-                                    @selected(request('status_kontak') === $statusKontak)
-                                >{{ $statusKontak }}</option>
-                            @endforeach
-                            <option
-                                value="__kosong__"
-                                @selected(request('status_kontak') === '__kosong__')
-                            >Belum Diisi</option>
-                        </select>
-                    </div>
-
                     <div>
                         <label for="export-mitra-kategori" class="form-label">
                             Kategori Mitra
@@ -178,7 +149,7 @@
             class="row g-2"
         >
 
-            <div class="col-md-6">
+            <div class="col-md-8">
 
                 <input
                     type="text"
@@ -235,72 +206,6 @@
             </div>
 
 
-            <div class="col-md-2">
-
-                <select
-                    name="status_kontak"
-                    class="form-select"
-                >
-
-                    <option value="">
-                        Semua Kontak
-                    </option>
-
-                    <option
-                        value="Belum Diverifikasi"
-                        @selected(
-                            request('status_kontak')
-                            === 'Belum Diverifikasi'
-                        )
-                    >
-                        Belum Diverifikasi
-                    </option>
-
-                    <option
-                        value="Kontak Mitra"
-                        @selected(
-                            request('status_kontak')
-                            === 'Kontak Mitra'
-                        )
-                    >
-                        Kontak Mitra
-                    </option>
-
-                    <option
-                        value="Terverifikasi PIC"
-                        @selected(
-                            request('status_kontak')
-                            === 'Terverifikasi PIC'
-                        )
-                    >
-                        Terverifikasi PIC
-                    </option>
-
-                    <option
-                        value="Bukan PIC"
-                        @selected(
-                            request('status_kontak')
-                            === 'Bukan PIC'
-                        )
-                    >
-                        Bukan PIC
-                    </option>
-
-                    <option
-                        value="Tidak Dapat Dihubungi"
-                        @selected(
-                            request('status_kontak')
-                            === 'Tidak Dapat Dihubungi'
-                        )
-                    >
-                        Tidak Dapat Dihubungi
-                    </option>
-
-                </select>
-
-            </div>
-
-
             <div class="col-md-1">
 
                 <button
@@ -349,10 +254,6 @@
                         </th>
 
                         <th class="text-center">
-                            Status Kontak
-                        </th>
-
-                        <th class="text-center">
                             Status
                         </th>
 
@@ -388,6 +289,10 @@
 
                                 </div>
 
+                                @foreach ($item->jurusans as $jurusan)
+                                    <div class="small text-muted mt-1">{{ $jurusan->nama_jurusan }}</div>
+                                @endforeach
+
                             </td>
 
 
@@ -404,65 +309,6 @@
                                     $item->no_telepon
                                     ?: '-'
                                 }}
-
-                            </td>
-
-
-                            {{-- STATUS KONTAK --}}
-
-                            <td class="text-center">
-
-                                @if(
-                                    $item->status_kontak
-                                    === 'Terverifikasi PIC'
-                                )
-
-                                    <span
-                                        class="badge bg-success"
-                                    >
-                                        Terverifikasi PIC
-                                    </span>
-
-                                @elseif(
-                                    $item->status_kontak
-                                    === 'Kontak Mitra'
-                                )
-
-                                    <span class="badge bg-info text-dark">
-                                        Kontak Mitra
-                                    </span>
-
-                                @elseif(
-                                    $item->status_kontak
-                                    === 'Bukan PIC'
-                                )
-
-                                    <span
-                                        class="badge bg-danger"
-                                    >
-                                        Bukan PIC
-                                    </span>
-
-                                @elseif(
-                                    $item->status_kontak
-                                    === 'Tidak Dapat Dihubungi'
-                                )
-
-                                    <span
-                                        class="badge bg-secondary"
-                                    >
-                                        Tidak Dapat Dihubungi
-                                    </span>
-
-                                @else
-
-                                    <span
-                                        class="badge bg-warning text-dark"
-                                    >
-                                        Belum Diverifikasi
-                                    </span>
-
-                                @endif
 
                             </td>
 
@@ -564,7 +410,7 @@
                         <tr>
 
                             <td
-                                colspan="{{ auth()->user()->isAdmin() ? 6 : 7 }}"
+                                colspan="{{ auth()->user()->isAdmin() ? 5 : 6 }}"
                                 class="text-center py-5"
                             >
 
