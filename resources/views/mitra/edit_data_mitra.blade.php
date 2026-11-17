@@ -303,17 +303,29 @@
 
                 @php
                     $pic = $mitra->pics->first();
-                    $extraPicRows = old('pics', $mitra->pics->skip(1)->map(function ($extraPic) {
+                    $allJurusanKeys = $mitra->jurusans->map(fn ($jurusan) => 'id:'.$jurusan->id_jurusan)->all();
+                    $extraPicRows = old('pics', $mitra->pics->skip(1)->map(function ($extraPic) use ($allJurusanKeys) {
+                        $linkedJurusanKeys = $extraPic->jurusans->map(fn ($jurusan) => 'id:'.$jurusan->id_jurusan)->all();
+                        $handlesAllJurusans = $allJurusanKeys !== []
+                            && array_diff($allJurusanKeys, $linkedJurusanKeys) === []
+                            && array_diff($linkedJurusanKeys, $allJurusanKeys) === [];
+
                         return [
                             'id' => $extraPic->id_pic,
                             'nama_pic' => $extraPic->nama_pic,
                             'jabatan' => $extraPic->jabatan,
                             'email_pic' => $extraPic->email,
                             'no_whatsapp' => $extraPic->no_whatsapp,
-                            'jurusan_keys' => $extraPic->jurusans->map(fn ($jurusan) => 'id:'.$jurusan->id_jurusan)->all(),
+                            'jurusan_keys' => $handlesAllJurusans ? ['__instansi__'] : $linkedJurusanKeys,
                         ];
                     })->values()->all());
-                    $linkedPicJurusanKeys = $pic?->jurusans->map(fn ($jurusan) => 'id:'.$jurusan->id_jurusan)->all() ?? [];
+                    $linkedPicJurusanIds = $pic?->jurusans->map(fn ($jurusan) => 'id:'.$jurusan->id_jurusan)->all() ?? [];
+                    $picHandlesAllJurusans = $allJurusanKeys !== []
+                        && array_diff($allJurusanKeys, $linkedPicJurusanIds) === []
+                        && array_diff($linkedPicJurusanIds, $allJurusanKeys) === [];
+                    $linkedPicJurusanKeys = $picHandlesAllJurusans
+                        ? ['__instansi__']
+                        : $linkedPicJurusanIds;
                     $picJurusanKeys = old('pic_jurusan_keys', $linkedPicJurusanKeys !== [] ? $linkedPicJurusanKeys : ['__instansi__']);
                     $storedJurusanRows = $mitra->jurusans->map(function ($jurusan) {
                         return [

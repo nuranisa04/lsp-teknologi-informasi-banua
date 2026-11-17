@@ -12,7 +12,7 @@ class Jurusan extends Model
 
     protected $primaryKey = 'id_jurusan';
 
-    protected $fillable = ['id_mitra', 'nama_jurusan', 'no_telepon', 'jenis_kontak', 'status_kontak'];
+    protected $fillable = ['id_mitra', 'nama_jurusan', 'no_telepon', 'jenis_kontak'];
 
     public function mitra(): BelongsTo
     {
@@ -22,7 +22,6 @@ class Jurusan extends Model
     public function pics(): BelongsToMany
     {
         return $this->belongsToMany(PicMitra::class, 'jurusan_pic', 'id_jurusan', 'id_pic')
-            ->withPivot('status_kontak')
             ->withTimestamps();
     }
 }

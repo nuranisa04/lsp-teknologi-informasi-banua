@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('nama_jurusan');
             $table->string('no_telepon', 30)->nullable();
             $table->string('jenis_kontak')->nullable();
-            $table->string('status_kontak', 40)->default('Belum Diverifikasi');
             $table->timestamps();
 
             $table->foreign('id_mitra')->references('id_mitra')->on('data_mitra')->cascadeOnDelete();

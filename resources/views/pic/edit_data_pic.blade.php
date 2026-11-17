@@ -71,7 +71,24 @@
 
 
                     @php
-                        $selectedPicJurusanId = old('id_jurusan', $pic->jurusans->first()?->id_jurusan);
+                        $mitraJurusanIds = $mitra->firstWhere('id_mitra', $pic->id_mitra)
+                            ?->jurusans
+                            ->pluck('id_jurusan')
+                            ->map(fn ($id) => (string) $id)
+                            ->all() ?? [];
+                        $linkedPicJurusanIds = $pic->jurusans
+                            ->pluck('id_jurusan')
+                            ->map(fn ($id) => (string) $id)
+                            ->all();
+                        $picHandlesAllJurusans = $mitraJurusanIds !== []
+                            && array_diff($mitraJurusanIds, $linkedPicJurusanIds) === []
+                            && array_diff($linkedPicJurusanIds, $mitraJurusanIds) === [];
+                        $selectedPicJurusanId = old(
+                            'id_jurusan',
+                            $picHandlesAllJurusans
+                                ? 'all'
+                                : ($linkedPicJurusanIds[0] ?? '')
+                        );
                     @endphp
 
                     <select
@@ -91,16 +108,29 @@
                         )
 
                             @if(in_array($item->bidang_usaha, ['Sekolah', 'Perguruan Tinggi'], true) && $item->jurusans->isNotEmpty())
+                                @if($selectedPicJurusanId === '' && old('id_mitra', $pic->id_mitra) == $item->id_mitra)
+                                    <option
+                                        value="{{ $item->id_mitra }}"
+                                        data-id-jurusan=""
+                                        selected
+                                    >{{ $item->nama_mitra }} - Pilih jurusan</option>
+                                @endif
+                                <option
+                                    value="{{ $item->id_mitra }}"
+                                    data-id-jurusan="all"
+                                    @selected(old('id_mitra', $pic->id_mitra) == $item->id_mitra && $selectedPicJurusanId === 'all')
+                                >{{ $item->nama_mitra }} - Seluruh Jurusan</option>
                                 @foreach($item->jurusans as $jurusan)
                                     <option
                                         value="{{ $item->id_mitra }}"
                                         data-id-jurusan="{{ $jurusan->id_jurusan }}"
-                                        @selected(old('id_mitra', $pic->id_mitra) == $item->id_mitra && $selectedPicJurusanId == $jurusan->id_jurusan)
+                                        @selected(old('id_mitra', $pic->id_mitra) == $item->id_mitra && $selectedPicJurusanId == (string) $jurusan->id_jurusan)
                                     >{{ $item->nama_mitra }} - {{ $jurusan->nama_jurusan }}</option>
                                 @endforeach
                             @else
                                 <option
                                     value="{{ $item->id_mitra }}"
+                                    data-id-jurusan=""
                                     @selected(old('id_mitra', $pic->id_mitra) == $item->id_mitra)
                                 >{{ $item->nama_mitra }}</option>
                             @endif
@@ -111,6 +141,10 @@
 
                     <input type="hidden" name="id_jurusan" id="pic-jurusan-id" value="{{ $selectedPicJurusanId }}">
                     <input type="hidden" name="jurusan_changed" id="pic-jurusan-changed" value="{{ old('jurusan_changed', '0') }}">
+                    <div class="form-text">Pilih seluruh jurusan atau salah satu prodi untuk PIC ini.</div>
+                    @error('id_jurusan')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
 
                 </div>
 
@@ -321,10 +355,17 @@
 </div>
 
 <script>
-    document.getElementById('pic-mitra-select').addEventListener('change', function () {
-        document.getElementById('pic-jurusan-id').value = this.selectedOptions[0]?.dataset.idJurusan ?? '';
-        document.getElementById('pic-jurusan-changed').value = '1';
-    });
+    const picMitraSelect = document.getElementById('pic-mitra-select');
+    const picJurusanInput = document.getElementById('pic-jurusan-id');
+    const picJurusanChanged = document.getElementById('pic-jurusan-changed');
+
+    function updatePicJurusanSelection() {
+        picJurusanInput.value = picMitraSelect.selectedOptions[0]?.dataset.idJurusan ?? '';
+        picJurusanChanged.value = '1';
+    }
+
+    picMitraSelect.addEventListener('change', updatePicJurusanSelection);
+    picJurusanInput.value = picMitraSelect.selectedOptions[0]?.dataset.idJurusan ?? '';
 </script>
 
 @endsection

@@ -34,7 +34,6 @@ class Mitra extends Model
         'email',
         'no_telepon',
         'sumber_data',
-        'status_kontak',
         'status',
     ];
 
@@ -59,31 +58,5 @@ class Mitra extends Model
             'id_user',
             'id_user'
         );
-    }
-
-    public function contactStatusFromPics(?PicMitra $excludingPic = null): string
-    {
-        if ($this->status_kontak === 'Bukan PIC') {
-            return 'Bukan PIC';
-        }
-
-        $pics = $this->pics();
-
-        if ($excludingPic) {
-            $pics->where('id_pic', '!=', $excludingPic->getKey());
-        }
-
-        return $pics->exists()
-            ? 'Terverifikasi PIC'
-            : 'Belum Diverifikasi';
-    }
-
-    public function syncContactStatusFromPics(): void
-    {
-        $statusKontak = $this->contactStatusFromPics();
-
-        if ($this->status_kontak !== $statusKontak) {
-            $this->update(['status_kontak' => $statusKontak]);
-        }
     }
 }

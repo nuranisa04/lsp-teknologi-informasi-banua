@@ -129,11 +129,11 @@ class PicMitraController extends Controller
                 'status' => $data['status'],
             ]);
 
-            if (filled($data['id_jurusan'] ?? null)) {
-                $pic->jurusans()->sync([$data['id_jurusan']]);
-            }
+            $jurusanIds = ($data['id_jurusan'] ?? null) === 'all'
+                ? $mitra->jurusans()->pluck('id_jurusan')->all()
+                : (filled($data['id_jurusan'] ?? null) ? [(int) $data['id_jurusan']] : []);
 
-            $mitra->syncContactStatusFromPics();
+            $pic->jurusans()->sync($jurusanIds);
         });
 
         return redirect()
@@ -220,15 +220,13 @@ class PicMitraController extends Controller
             ]);
 
             if ($mitraChanged || ($data['jurusan_changed'] ?? false)) {
-                $pic->jurusans()->sync(
-                    filled($data['id_jurusan'] ?? null) ? [$data['id_jurusan']] : []
-                );
+                $jurusanIds = ($data['id_jurusan'] ?? null) === 'all'
+                    ? $nextMitra->jurusans()->pluck('id_jurusan')->all()
+                    : (filled($data['id_jurusan'] ?? null) ? [(int) $data['id_jurusan']] : []);
+
+                $pic->jurusans()->sync($jurusanIds);
             }
 
-            if ($mitraChanged) {
-                $previousMitra->syncContactStatusFromPics();
-                $nextMitra->syncContactStatusFromPics();
-            }
         });
 
         return redirect()
@@ -279,7 +277,6 @@ class PicMitraController extends Controller
 
             $pic->delete();
 
-            $mitra->syncContactStatusFromPics();
         });
 
         return redirect()
@@ -300,6 +297,16 @@ class PicMitraController extends Controller
         Request $request
     ): array {
 
+        $jurusanScopes = DB::table('jurusan_mitra')
+            ->where('id_mitra', $request->input('id_mitra'))
+            ->pluck('id_jurusan')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
+
+        if ($jurusanScopes !== []) {
+            array_unshift($jurusanScopes, 'all');
+        }
+
         $data = $request->validate([
 
             'id_mitra' => [
@@ -312,10 +319,7 @@ class PicMitraController extends Controller
 
             'id_jurusan' => [
                 'nullable',
-                'integer',
-                Rule::exists('jurusan_mitra', 'id_jurusan')->where(
-                    fn ($query) => $query->where('id_mitra', $request->input('id_mitra'))
-                ),
+                Rule::in($jurusanScopes),
             ],
 
             'jurusan_changed' => ['sometimes', 'boolean'],

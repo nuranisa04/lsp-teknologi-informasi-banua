@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('jurusan_pic', function (Blueprint $table) {
             $table->unsignedBigInteger('id_jurusan');
             $table->unsignedBigInteger('id_pic');
-            $table->string('status_kontak', 40)->default('Belum Diverifikasi');
             $table->primary(['id_jurusan', 'id_pic']);
             $table->foreign('id_jurusan')->references('id_jurusan')->on('jurusan_mitra')->cascadeOnDelete();
             $table->foreign('id_pic')->references('id_pic')->on('pic_mitra')->cascadeOnDelete();
+            $table->timestamps();
         });
     }
 
