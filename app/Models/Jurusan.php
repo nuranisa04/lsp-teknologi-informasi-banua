@@ -12,7 +12,7 @@ class Jurusan extends Model
 
     protected $primaryKey = 'id_jurusan';
 
-    protected $fillable = ['id_mitra', 'nama_jurusan', 'no_telepon', 'jenis_kontak'];
+    protected $fillable = ['id_mitra', 'nama_jurusan', 'no_telepon'];
 
     public function mitra(): BelongsTo
     {

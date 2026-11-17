@@ -66,13 +66,34 @@
 
                     </label>
 
-                    <input
-                        type="text"
-                        name="nama_mitra"
-                        class="form-control"
-                        value="{{ old('nama_mitra') }}"
-                        required
-                    >
+                    <div class="position-relative">
+                        <input
+                            type="text"
+                            id="nama_mitra"
+                            name="nama_mitra"
+                            class="form-control"
+                            value="{{ old('nama_mitra') }}"
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            aria-controls="mitra-suggestions"
+                            data-mitra-autocomplete
+                            data-suggestions-url="{{ route('mitra.suggestions') }}"
+                            data-current-id=""
+                            required
+                        >
+                        <div
+                            id="mitra-suggestions"
+                            class="list-group position-absolute top-100 start-0 w-100 shadow"
+                            style="z-index: 20; max-height: 18rem; overflow-y: auto;"
+                            data-mitra-suggestions
+                            role="listbox"
+                            hidden
+                        ></div>
+                    </div>
+                    <div class="small mt-1" data-mitra-message role="status" aria-live="polite"></div>
+                    @error('nama_mitra')
+                        <div class="text-danger small mt-1" data-mitra-validation-error>{{ $message }}</div>
+                    @enderror
 
                 </div>
 
@@ -302,11 +323,14 @@
                     <label class="form-label fw-semibold">Jurusan / Program Studi</label>
                     <div id="jurusan-rows">
                         @foreach (old('jurusans', [['nama' => '', 'no_telepon' => '']]) as $index => $jurusan)
-                            <div class="card border mb-3 jurusan-row p-3" data-jurusan-key="index:{{ $index }}"><div class="row g-3">
+                            <div class="card border mb-3 jurusan-row p-3" data-jurusan-key="{{ !empty($jurusan['id']) ? 'id:'.$jurusan['id'] : 'index:'.$index }}">
+                                @if (!empty($jurusan['id']))<input type="hidden" name="jurusans[{{ $index }}][id]" value="{{ $jurusan['id'] }}">@endif
+                                <div class="row g-3">
                                 <div class="col-md-6"><label class="form-label">Nama Jurusan / Program Studi</label><input class="form-control" name="jurusans[{{ $index }}][nama]" value="{{ $jurusan['nama'] ?? '' }}">@error('jurusans.'.$index.'.nama')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
                                 <div class="col-md-6"><label class="form-label">Nomor Kontak Jurusan / Program Studi</label><input class="form-control" name="jurusans[{{ $index }}][no_telepon]" value="{{ $jurusan['no_telepon'] ?? '' }}" inputmode="numeric" maxlength="13"></div>
                                 <div class="col-12 text-end"><button type="button" class="btn btn-back remove-jurusan">Hapus Jurusan</button></div>
-                            </div></div>
+                                </div>
+                            </div>
                         @endforeach
                     </div>
                     <button type="button" class="btn btn-back" id="add-jurusan">Tambah Jurusan</button>
@@ -371,6 +395,8 @@
                         <div class="card-body">
 
                             <input type="hidden" name="pics_present" value="1">
+                            <input type="hidden" name="existing_mitra_id" value="{{ old('existing_mitra_id') }}">
+                            <input type="hidden" name="pic_id" id="pic_id" value="{{ old('pic_id') }}">
 
                             <div class="row g-3">
 
@@ -483,6 +509,9 @@
                                     <div class="card border mt-3 pic-entry">
                                         <div class="card-body">
                                             <div class="row g-3">
+                                @if (!empty($extraPic['id']))
+                                    <input type="hidden" name="pics[{{ $extraIndex }}][id]" value="{{ $extraPic['id'] }}">
+                                @endif
                                                 <div class="col-12 pic-entry-scope-wrapper" hidden>
                                                     <label class="form-label fw-semibold">Jurusan yang ditangani PIC</label>
                                                     <div class="pic-jurusan-select border border-warning rounded-3 bg-warning-subtle p-2" data-input-name="pics[{{ $extraIndex }}][jurusan_keys][]" data-selected-keys="{{ implode(',', $extraPic['jurusan_keys'] ?? []) }}"></div>
@@ -711,6 +740,9 @@ document.addEventListener(
             const index = nextJurusanIndex++;
             const template = jurusanRows.querySelector('.jurusan-row').cloneNode(true);
             template.dataset.jurusanKey = 'index:' + index;
+            template.querySelectorAll('input[type="hidden"]').forEach(function (field) {
+                field.remove();
+            });
             template.querySelectorAll('input, select').forEach(function (field) {
                 field.value = '';
                 field.name = field.name.replace(/jurusans\[\d+\]/, 'jurusans[' + index + ']');
@@ -781,6 +813,85 @@ document.addEventListener(
 
         }
 
+        document.addEventListener('mitra:populate-related-data', function (event) {
+            const mitra = event.detail;
+            const jurusanTemplate = jurusanRows.querySelector('.jurusan-row').cloneNode(true);
+            jurusanRows.replaceChildren();
+
+            const jurusanData = mitra.jurusans.length > 0
+                ? mitra.jurusans
+                : [{ id: null, name: '', phone: '' }];
+
+            jurusanData.forEach(function (jurusan, index) {
+                const row = jurusanTemplate.cloneNode(true);
+                row.dataset.jurusanKey = jurusan.id ? 'id:' + jurusan.id : 'index:' + index;
+                row.querySelectorAll('.text-danger').forEach(function (error) {
+                    error.remove();
+                });
+                row.querySelectorAll('input[type="hidden"]').forEach(function (field) {
+                    field.remove();
+                });
+                row.querySelector('[name$="[nama]"]').name = 'jurusans[' + index + '][nama]';
+                row.querySelector('[name$="[nama]"]').value = jurusan.name;
+                row.querySelector('[name$="[no_telepon]"]').name = 'jurusans[' + index + '][no_telepon]';
+                row.querySelector('[name$="[no_telepon]"]').value = jurusan.phone || '';
+
+                if (jurusan.id) {
+                    const idField = document.createElement('input');
+                    idField.type = 'hidden';
+                    idField.name = 'jurusans[' + index + '][id]';
+                    idField.value = jurusan.id;
+                    row.prepend(idField);
+                    row.querySelector('.remove-jurusan').hidden = true;
+                }
+
+                jurusanRows.appendChild(row);
+            });
+
+            nextJurusanIndex = Math.max(jurusanData.length, 1);
+
+            const pics = mitra.pics || [];
+            const primaryPic = pics[0] || null;
+            nextPicIndex = Math.max(pics.length - 1, 0);
+            document.getElementById('pic_id').value = primaryPic?.id || '';
+            namaPIC.value = primaryPic?.name || '';
+            jabatan.value = primaryPic?.position || '';
+            emailPIC.value = primaryPic?.email || '';
+            noWhatsapp.value = primaryPic?.phone || '';
+            const primaryPicScope = document.getElementById('pic-jurusan-keys');
+            primaryPicScope.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+                input.checked = false;
+            });
+            primaryPicScope.dataset.selectedKeys = primaryPic
+                ? primaryPic.jurusan_keys.join(',')
+                : '__instansi__';
+
+            additionalPics.replaceChildren();
+            pics.slice(1).forEach(function (pic, index) {
+                const entry = picTemplate.content.firstElementChild.cloneNode(true);
+                entry.innerHTML = entry.innerHTML.replaceAll('__INDEX__', String(index));
+                const row = entry.querySelector('.row.g-3');
+                const idField = document.createElement('input');
+                idField.type = 'hidden';
+                idField.name = 'pics[' + index + '][id]';
+                idField.value = pic.id;
+                row.prepend(idField);
+                entry.querySelector('.remove-pic').hidden = true;
+
+                entry.querySelector('[name="pics[' + index + '][nama_pic]"]').value = pic.name;
+                entry.querySelector('[name="pics[' + index + '][jabatan]"]').value = pic.position;
+                entry.querySelector('[name="pics[' + index + '][email_pic]"]').value = pic.email || '';
+                entry.querySelector('[name="pics[' + index + '][no_whatsapp]"]').value = pic.phone;
+                entry.querySelector('.pic-jurusan-select').dataset.selectedKeys = pic.jurusan_keys.join(',');
+                additionalPics.appendChild(entry);
+            });
+
+            formPIC.style.display = pics.length > 0 ? 'block' : 'none';
+            picToggle.setAttribute('aria-expanded', pics.length > 0 ? 'true' : 'false');
+            updateJurusanForm();
+            updatePICForm();
+        });
+
 
         picToggle.addEventListener(
             'click',
@@ -817,5 +928,217 @@ document.addEventListener(
 );
 
 </script>
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const nameInput = document.querySelector('[data-mitra-autocomplete]');
+            if (!nameInput) {
+                return;
+            }
+
+            const form = nameInput.closest('form');
+            const suggestions = form.querySelector('[data-mitra-suggestions]');
+            const message = form.querySelector('[data-mitra-message]');
+            const currentMitraId = Number(nameInput.dataset.currentId || 0);
+            let selectedMitra = null;
+            let isApplyingSuggestion = false;
+            let debounceTimer;
+            let requestController;
+
+            function closeSuggestions() {
+                suggestions.hidden = true;
+                suggestions.replaceChildren();
+                nameInput.setAttribute('aria-expanded', 'false');
+            }
+
+            function setMessage(text, style = 'text-muted') {
+                message.className = 'small mt-1 ' + style;
+                message.textContent = text;
+            }
+
+            function clearValidationError() {
+                form.querySelector('[data-mitra-validation-error]')?.remove();
+            }
+
+            function fillField(fieldName, value) {
+                const field = form.querySelector('[name="' + fieldName + '"]');
+                if (field) {
+                    field.value = value ?? '';
+                }
+            }
+
+            function hasNewRelatedData() {
+                const hasNewJurusan = Array.from(form.querySelectorAll('.jurusan-row')).some(function (row) {
+                    const nameField = row.querySelector('[name$="[nama]"]');
+                    return !row.querySelector('input[name$="[id]"]')
+                        && Boolean(nameField?.value.trim());
+                });
+                const primaryPicId = form.querySelector('[name="pic_id"]')?.value;
+                const primaryPicName = form.querySelector('[name="nama_pic"]')?.value.trim() || '';
+                const hasNewPrimaryPic = !primaryPicId && primaryPicName !== '';
+                const hasNewExtraPic = Array.from(form.querySelectorAll('.pic-entry')).some(function (row) {
+                    const nameField = row.querySelector('[name$="[nama_pic]"]');
+                    return !row.querySelector('input[name$="[id]"]')
+                        && Boolean(nameField?.value.trim());
+                });
+
+                return hasNewJurusan || hasNewPrimaryPic || hasNewExtraPic;
+            }
+
+            function selectMitra(mitra) {
+                isApplyingSuggestion = true;
+                nameInput.value = mitra.name;
+                nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+                const category = form.querySelector('[name="kategori_mitra"]');
+                const categoryOptions = Array.from(category.options).map(function (option) {
+                    return option.value;
+                });
+                const categoryIsListed = categoryOptions.includes(mitra.category)
+                    && mitra.category !== 'Lainnya';
+                category.value = categoryIsListed ? mitra.category : 'Lainnya';
+                category.dispatchEvent(new Event('change', { bubbles: true }));
+                fillField('kategori_mitra_lainnya', categoryIsListed ? '' : mitra.category);
+                fillField('alamat', mitra.address);
+                fillField('website', mitra.website);
+                fillField('email', mitra.email);
+                fillField('no_telepon', mitra.phone);
+                fillField('sumber_data', mitra.source);
+                fillField('status', mitra.status);
+                const existingMitraId = form.querySelector('[name="existing_mitra_id"]');
+                if (existingMitraId) {
+                    existingMitraId.value = mitra.id;
+                }
+                isApplyingSuggestion = false;
+                selectedMitra = mitra;
+                closeSuggestions();
+                setMessage('');
+                clearValidationError();
+
+                if (currentMitraId === 0) {
+                    form.dispatchEvent(new CustomEvent('mitra:populate-related-data', {
+                        detail: mitra,
+                        bubbles: true,
+                    }));
+                }
+            }
+
+            function renderSuggestions(records) {
+                suggestions.replaceChildren();
+
+                records.forEach(function (mitra) {
+                    const option = document.createElement('button');
+                    option.type = 'button';
+                    option.className = 'list-group-item list-group-item-action';
+                    option.setAttribute('role', 'option');
+                    option.textContent = mitra.name + ' - ' + mitra.category;
+                    option.addEventListener('click', function () {
+                        selectMitra(mitra);
+                    });
+                    suggestions.appendChild(option);
+                });
+
+                suggestions.hidden = records.length === 0;
+                nameInput.setAttribute('aria-expanded', records.length > 0 ? 'true' : 'false');
+            }
+
+            nameInput.addEventListener('input', function () {
+                if (isApplyingSuggestion) {
+                    return;
+                }
+
+                if (selectedMitra && currentMitraId === 0) {
+                    const existingMitraId = form.querySelector('[name="existing_mitra_id"]');
+                    if (existingMitraId) {
+                        existingMitraId.value = '';
+                    }
+                    form.dispatchEvent(new CustomEvent('mitra:populate-related-data', {
+                        detail: { jurusans: [], pics: [] },
+                        bubbles: true,
+                    }));
+                }
+
+                selectedMitra = null;
+                setMessage('');
+                clearValidationError();
+                clearTimeout(debounceTimer);
+                requestController?.abort();
+
+                const search = nameInput.value.trim();
+                if (search.length < 2) {
+                    closeSuggestions();
+                    return;
+                }
+
+                debounceTimer = setTimeout(async function () {
+                    requestController = new AbortController();
+                    const url = new URL(nameInput.dataset.suggestionsUrl, window.location.origin);
+                    url.searchParams.set('search', search);
+                    setMessage('Mencari data mitra...');
+
+                    try {
+                        const response = await fetch(url, {
+                            headers: { Accept: 'application/json' },
+                            signal: requestController.signal,
+                        });
+                        if (!response.ok) {
+                            throw new Error('Permintaan saran nama mitra gagal.');
+                        }
+
+                        const records = await response.json();
+                        if (nameInput.value.trim() !== search) {
+                            return;
+                        }
+
+                        renderSuggestions(records);
+                        setMessage('');
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            return;
+                        }
+
+                        closeSuggestions();
+                        setMessage('Saran nama mitra gagal dimuat. Silakan coba lagi.', 'text-danger');
+                    }
+                }, 250);
+            });
+
+            form.addEventListener('input', function () {
+                clearValidationError();
+                if (selectedMitra && hasNewRelatedData()) {
+                    setMessage('');
+                }
+            });
+
+            nameInput.addEventListener('keydown', function (event) {
+                if (event.key === 'ArrowDown' && ! suggestions.hidden) {
+                    event.preventDefault();
+                    suggestions.querySelector('button')?.focus();
+                } else if (event.key === 'Escape') {
+                    closeSuggestions();
+                }
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!suggestions.contains(event.target) && event.target !== nameInput) {
+                    closeSuggestions();
+                }
+            });
+
+            form.addEventListener('submit', function (event) {
+                if (
+                    selectedMitra
+                    && Number(selectedMitra.id) !== currentMitraId
+                    && (currentMitraId !== 0 || ! hasNewRelatedData())
+                ) {
+                    event.preventDefault();
+                    setMessage('Mitra ini sudah terdaftar. Tambahkan PIC atau jurusan baru untuk menyimpan data tambahan.', 'text-danger');
+                    nameInput.focus();
+                }
+            });
+        });
+    </script>
+@endpush
 
 @endsection

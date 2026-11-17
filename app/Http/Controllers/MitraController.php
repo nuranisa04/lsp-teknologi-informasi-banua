@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Mitra;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -175,6 +176,89 @@ class MitraController extends Controller
         );
     }
 
+    public function suggestions(Request $request): JsonResponse
+    {
+        $this->adminOnly();
+
+        $data = $request->validate([
+            'search' => ['required', 'string', 'min:2', 'max:255'],
+        ]);
+        $search = trim($data['search']);
+
+        if (mb_strlen($search) < 2) {
+            return response()->json([]);
+        }
+
+        $matches = Mitra::query()
+            ->with([
+                'jurusans:id_jurusan,id_mitra,nama_jurusan,no_telepon',
+                'pics:id_pic,id_mitra,nama_pic,jabatan,email,no_whatsapp,status',
+                'pics.jurusans:id_jurusan',
+            ])
+            ->select([
+                'id_mitra',
+                'nama_mitra',
+                'bidang_usaha',
+                'alamat',
+                'website',
+                'email',
+                'no_telepon',
+                'sumber_data',
+                'status',
+            ])
+            ->where('nama_mitra', 'like', '%'.$search.'%')
+            ->orderBy('nama_mitra')
+            ->limit(8)
+            ->get()
+            ->map(static function (Mitra $mitra): array {
+                $allJurusanKeys = $mitra->jurusans
+                    ->map(static fn ($jurusan): string => 'id:'.$jurusan->id_jurusan)
+                    ->all();
+
+                return [
+                    'id' => $mitra->id_mitra,
+                    'name' => $mitra->nama_mitra,
+                    'category' => $mitra->bidang_usaha,
+                    'address' => $mitra->alamat,
+                    'website' => $mitra->website,
+                    'email' => $mitra->email,
+                    'phone' => $mitra->no_telepon,
+                    'source' => $mitra->sumber_data,
+                    'status' => $mitra->status,
+                    'jurusans' => $mitra->jurusans
+                        ->map(static fn ($jurusan): array => [
+                            'id' => $jurusan->id_jurusan,
+                            'name' => $jurusan->nama_jurusan,
+                            'phone' => $jurusan->no_telepon,
+                        ])
+                        ->all(),
+                    'pics' => $mitra->pics
+                        ->map(static function ($pic) use ($allJurusanKeys): array {
+                            $linkedJurusanKeys = $pic->jurusans
+                                ->map(static fn ($jurusan): string => 'id:'.$jurusan->id_jurusan)
+                                ->all();
+                            $handlesAllJurusans = $allJurusanKeys !== []
+                                && array_diff($allJurusanKeys, $linkedJurusanKeys) === []
+                                && array_diff($linkedJurusanKeys, $allJurusanKeys) === [];
+
+                            return [
+                                'id' => $pic->id_pic,
+                                'name' => $pic->nama_pic,
+                                'position' => $pic->jabatan,
+                                'email' => $pic->email,
+                                'phone' => $pic->no_whatsapp,
+                                'jurusan_keys' => $handlesAllJurusans
+                                    ? ['__instansi__']
+                                    : ($linkedJurusanKeys !== [] ? $linkedJurusanKeys : ($allJurusanKeys !== [] ? ['__instansi__'] : [])),
+                            ];
+                        })
+                        ->all(),
+                ];
+            });
+
+        return response()->json($matches);
+    }
+
     public function show(Mitra $mitra)
     {
         $mitra->load([
@@ -199,9 +283,52 @@ class MitraController extends Controller
     {
         $this->adminOnly();
 
-        $data = $this->validateData(
-            $request
-        );
+        $existingMitraId = $request->input('existing_mitra_id');
+        $existingMitra = null;
+        if (filled($existingMitraId)) {
+            $request->validate([
+                'existing_mitra_id' => ['required', 'integer', Rule::exists('data_mitra', 'id_mitra')],
+            ]);
+            $existingMitra = Mitra::findOrFail($existingMitraId);
+        }
+
+        $data = $this->validateData($request, $existingMitra);
+
+        if ($existingMitra) {
+            if (mb_strtolower($data['nama_mitra']) !== mb_strtolower($existingMitra->nama_mitra)) {
+                throw ValidationException::withMessages([
+                    'nama_mitra' => 'Pilih kembali nama mitra yang sesuai dengan data yang sudah terdaftar.',
+                ]);
+            }
+
+            if (! $this->hasNewMitraRelatedData($existingMitra, $data)) {
+                throw ValidationException::withMessages([
+                    'nama_mitra' => 'Mitra ini sudah terdaftar. Tambahkan PIC atau jurusan baru untuk menyimpan data tambahan.',
+                ]);
+            }
+
+            unset($data['existing_mitra_id'], $data['pics_present'], $data['jurusans_present']);
+
+            DB::transaction(function () use ($data, $existingMitra): void {
+                $existingMitra->update([
+                    'nama_mitra' => $data['nama_mitra'],
+                    'bidang_usaha' => $data['bidang_usaha'],
+                    'alamat' => $data['alamat'],
+                    'website' => $data['website'] ?? null,
+                    'email' => $data['email'] ?? null,
+                    'no_telepon' => $data['no_telepon'] ?? null,
+                    'sumber_data' => $data['sumber_data'] ?? null,
+                    'status' => $data['status'],
+                ]);
+
+                $data['resolved_pic_jurusan_ids'] = $this->syncJurusans($existingMitra, $data, true);
+                $this->syncPics($existingMitra, $data, true);
+            });
+
+            return redirect()
+                ->route('mitra.index')
+                ->with('success', 'Data tambahan PIC atau jurusan berhasil disimpan.');
+        }
 
         $user = auth()->user();
 
@@ -277,9 +404,7 @@ class MitraController extends Controller
 
         $this->adminOnly();
 
-        $data = $this->validateData(
-            $request
-        );
+        $data = $this->validateData($request, $mitra);
 
         DB::transaction(function () use (
             $data,
@@ -369,8 +494,20 @@ class MitraController extends Controller
     */
 
     private function validateData(
-        Request $request
+        Request $request,
+        ?Mitra $currentMitra = null
     ): array {
+
+        if (is_string($request->input('nama_mitra'))) {
+            $request->merge([
+                'nama_mitra' => trim($request->input('nama_mitra')),
+            ]);
+        }
+
+        $uniqueNameRule = Rule::unique('data_mitra', 'nama_mitra');
+        if ($currentMitra) {
+            $uniqueNameRule->ignore($currentMitra->getKey(), 'id_mitra');
+        }
 
         $rules = [
 
@@ -378,6 +515,13 @@ class MitraController extends Controller
                 'required',
                 'string',
                 'max:255',
+                $uniqueNameRule,
+            ],
+
+            'existing_mitra_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('data_mitra', 'id_mitra'),
             ],
 
             'kategori_mitra' => [
@@ -498,6 +642,7 @@ class MitraController extends Controller
             'email_pic.max' => 'Email PIC maksimal 255 karakter.',
             'no_telepon.regex' => 'Nomor kontak mitra hanya boleh berisi angka dan maksimal 13 digit.',
             'no_whatsapp_pic.regex' => 'Nomor WhatsApp PIC hanya boleh berisi angka dan maksimal 13 digit.',
+            'nama_mitra.unique' => 'Nama mitra sudah terdaftar. Pilih data dari dropdown untuk menambahkan PIC atau jurusan baru.',
         ];
 
         $data = $request->validate($rules, $messages);
@@ -568,7 +713,41 @@ class MitraController extends Controller
     }
 
     /** @param array<string, mixed> $data */
-    private function syncJurusans(Mitra $mitra, array $data): array
+    private function hasNewMitraRelatedData(Mitra $mitra, array $data): bool
+    {
+        $existingPicKeys = $mitra->pics()
+            ->get(['nama_pic', 'no_whatsapp'])
+            ->map(static fn ($pic): string => mb_strtolower(trim($pic->nama_pic)).'|'.$pic->no_whatsapp)
+            ->all();
+        $hasNewPic = collect($data['pic_rows'] ?? [])
+            ->contains(static function ($pic) use ($existingPicKeys): bool {
+                if (! is_array($pic) || filled($pic['id'] ?? null) || ! filled($pic['nama_pic'] ?? null)) {
+                    return false;
+                }
+
+                $picKey = mb_strtolower(trim($pic['nama_pic'])).'|'.($pic['no_whatsapp'] ?? '');
+
+                return ! in_array($picKey, $existingPicKeys, true);
+            });
+
+        $existingJurusanNames = $mitra->jurusans()
+            ->pluck('nama_jurusan')
+            ->map(static fn (string $name): string => mb_strtolower(trim($name)))
+            ->all();
+        $hasNewJurusan = collect($data['jurusans'] ?? [])
+            ->contains(static function ($jurusan) use ($existingJurusanNames): bool {
+                if (! is_array($jurusan) || filled($jurusan['id'] ?? null) || ! filled($jurusan['nama'] ?? null)) {
+                    return false;
+                }
+
+                return ! in_array(mb_strtolower(trim($jurusan['nama'])), $existingJurusanNames, true);
+            });
+
+        return $hasNewPic || $hasNewJurusan;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function syncJurusans(Mitra $mitra, array $data, bool $mergeExisting = false): array
     {
         if (! in_array($data['bidang_usaha'], ['Sekolah', 'Perguruan Tinggi'], true)) {
             return [];
@@ -586,6 +765,10 @@ class MitraController extends Controller
             if (filled($row['id'] ?? null)) {
                 $jurusan = $mitra->jurusans()->find($row['id']);
                 abort_unless($jurusan, 404);
+            } elseif ($mergeExisting) {
+                $jurusan = $mitra->jurusans()
+                    ->whereRaw('LOWER(TRIM(nama_jurusan)) = ?', [mb_strtolower(trim($row['nama']))])
+                    ->first();
             }
 
             $jurusanNumber = $row['no_telepon'] ?? null;
@@ -593,7 +776,6 @@ class MitraController extends Controller
             $attributes = [
                 'nama_jurusan' => $row['nama'],
                 'no_telepon' => $jurusanNumber,
-                'jenis_kontak' => 'Kontak Jurusan',
             ];
             if ($jurusan) {
                 $jurusan->update($attributes);
@@ -624,7 +806,7 @@ class MitraController extends Controller
      *
      * @param  array<string, mixed>  $data
      */
-    private function syncPics(Mitra $mitra, array $data): void
+    private function syncPics(Mitra $mitra, array $data, bool $mergeExisting = false): void
     {
         $resolvedJurusanIds = $data['resolved_pic_jurusan_ids'] ?? [];
         $submittedPicIds = [];
@@ -639,6 +821,12 @@ class MitraController extends Controller
                 ? $mitra->pics()->find($picRow['id'])
                 : null;
             abort_unless(! filled($picRow['id'] ?? null) || $pic, 404);
+            if (! $pic && $mergeExisting && filled($picRow['nama_pic'] ?? null) && filled($picRow['no_whatsapp'] ?? null)) {
+                $pic = $mitra->pics()
+                    ->whereRaw('LOWER(TRIM(nama_pic)) = ?', [mb_strtolower(trim($picRow['nama_pic']))])
+                    ->where('no_whatsapp', $picRow['no_whatsapp'])
+                    ->first();
+            }
 
             $selectedKeys = collect($picRow['jurusan_keys'] ?? [])->unique()->values();
             $selectsAllJurusans = $selectedKeys->contains('__instansi__');

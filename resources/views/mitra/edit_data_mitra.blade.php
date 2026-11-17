@@ -86,16 +86,37 @@
 
                     </label>
 
-                    <input
-                        type="text"
-                        name="nama_mitra"
-                        class="form-control"
-                        value="{{ old(
-                            'nama_mitra',
-                            $mitra->nama_mitra
-                        ) }}"
-                        required
-                    >
+                    <div class="position-relative">
+                        <input
+                            type="text"
+                            id="nama_mitra"
+                            name="nama_mitra"
+                            class="form-control"
+                            value="{{ old(
+                                'nama_mitra',
+                                $mitra->nama_mitra
+                            ) }}"
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            aria-controls="mitra-suggestions"
+                            data-mitra-autocomplete
+                            data-suggestions-url="{{ route('mitra.suggestions') }}"
+                            data-current-id="{{ $mitra->id_mitra }}"
+                            required
+                        >
+                        <div
+                            id="mitra-suggestions"
+                            class="list-group position-absolute top-100 start-0 w-100 shadow"
+                            style="z-index: 20; max-height: 18rem; overflow-y: auto;"
+                            data-mitra-suggestions
+                            role="listbox"
+                            hidden
+                        ></div>
+                    </div>
+                    <div class="small mt-1" data-mitra-message role="status" aria-live="polite"></div>
+                    @error('nama_mitra')
+                        <div class="text-danger small mt-1" data-mitra-validation-error>{{ $message }}</div>
+                    @enderror
 
                 </div>
 
@@ -332,7 +353,6 @@
                             'id' => $jurusan->id_jurusan,
                             'nama' => $jurusan->nama_jurusan,
                             'no_telepon' => $jurusan->no_telepon,
-                            'jenis_kontak' => $jurusan->jenis_kontak,
                         ];
                     })->all();
                     $submittedJurusanRows = old('jurusans');
@@ -958,5 +978,217 @@ document.addEventListener(
 );
 
 </script>
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const nameInput = document.querySelector('[data-mitra-autocomplete]');
+            if (!nameInput) {
+                return;
+            }
+
+            const form = nameInput.closest('form');
+            const suggestions = form.querySelector('[data-mitra-suggestions]');
+            const message = form.querySelector('[data-mitra-message]');
+            const currentMitraId = Number(nameInput.dataset.currentId || 0);
+            let selectedMitra = null;
+            let isApplyingSuggestion = false;
+            let debounceTimer;
+            let requestController;
+
+            function closeSuggestions() {
+                suggestions.hidden = true;
+                suggestions.replaceChildren();
+                nameInput.setAttribute('aria-expanded', 'false');
+            }
+
+            function setMessage(text, style = 'text-muted') {
+                message.className = 'small mt-1 ' + style;
+                message.textContent = text;
+            }
+
+            function clearValidationError() {
+                form.querySelector('[data-mitra-validation-error]')?.remove();
+            }
+
+            function fillField(fieldName, value) {
+                const field = form.querySelector('[name="' + fieldName + '"]');
+                if (field) {
+                    field.value = value ?? '';
+                }
+            }
+
+            function hasNewRelatedData() {
+                const hasNewJurusan = Array.from(form.querySelectorAll('.jurusan-row')).some(function (row) {
+                    const nameField = row.querySelector('[name$="[nama]"]');
+                    return !row.querySelector('input[name$="[id]"]')
+                        && Boolean(nameField?.value.trim());
+                });
+                const primaryPicId = form.querySelector('[name="pic_id"]')?.value;
+                const primaryPicName = form.querySelector('[name="nama_pic"]')?.value.trim() || '';
+                const hasNewPrimaryPic = !primaryPicId && primaryPicName !== '';
+                const hasNewExtraPic = Array.from(form.querySelectorAll('.pic-entry')).some(function (row) {
+                    const nameField = row.querySelector('[name$="[nama_pic]"]');
+                    return !row.querySelector('input[name$="[id]"]')
+                        && Boolean(nameField?.value.trim());
+                });
+
+                return hasNewJurusan || hasNewPrimaryPic || hasNewExtraPic;
+            }
+
+            function selectMitra(mitra) {
+                isApplyingSuggestion = true;
+                nameInput.value = mitra.name;
+                nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+                const category = form.querySelector('[name="kategori_mitra"]');
+                const categoryOptions = Array.from(category.options).map(function (option) {
+                    return option.value;
+                });
+                const categoryIsListed = categoryOptions.includes(mitra.category)
+                    && mitra.category !== 'Lainnya';
+                category.value = categoryIsListed ? mitra.category : 'Lainnya';
+                category.dispatchEvent(new Event('change', { bubbles: true }));
+                fillField('kategori_mitra_lainnya', categoryIsListed ? '' : mitra.category);
+                fillField('alamat', mitra.address);
+                fillField('website', mitra.website);
+                fillField('email', mitra.email);
+                fillField('no_telepon', mitra.phone);
+                fillField('sumber_data', mitra.source);
+                fillField('status', mitra.status);
+                const existingMitraId = form.querySelector('[name="existing_mitra_id"]');
+                if (existingMitraId) {
+                    existingMitraId.value = mitra.id;
+                }
+                isApplyingSuggestion = false;
+                selectedMitra = mitra;
+                closeSuggestions();
+                setMessage('');
+                clearValidationError();
+
+                if (currentMitraId === 0) {
+                    form.dispatchEvent(new CustomEvent('mitra:populate-related-data', {
+                        detail: mitra,
+                        bubbles: true,
+                    }));
+                }
+            }
+
+            function renderSuggestions(records) {
+                suggestions.replaceChildren();
+
+                records.forEach(function (mitra) {
+                    const option = document.createElement('button');
+                    option.type = 'button';
+                    option.className = 'list-group-item list-group-item-action';
+                    option.setAttribute('role', 'option');
+                    option.textContent = mitra.name + ' - ' + mitra.category;
+                    option.addEventListener('click', function () {
+                        selectMitra(mitra);
+                    });
+                    suggestions.appendChild(option);
+                });
+
+                suggestions.hidden = records.length === 0;
+                nameInput.setAttribute('aria-expanded', records.length > 0 ? 'true' : 'false');
+            }
+
+            nameInput.addEventListener('input', function () {
+                if (isApplyingSuggestion) {
+                    return;
+                }
+
+                if (selectedMitra && currentMitraId === 0) {
+                    const existingMitraId = form.querySelector('[name="existing_mitra_id"]');
+                    if (existingMitraId) {
+                        existingMitraId.value = '';
+                    }
+                    form.dispatchEvent(new CustomEvent('mitra:populate-related-data', {
+                        detail: { jurusans: [], pics: [] },
+                        bubbles: true,
+                    }));
+                }
+
+                selectedMitra = null;
+                setMessage('');
+                clearValidationError();
+                clearTimeout(debounceTimer);
+                requestController?.abort();
+
+                const search = nameInput.value.trim();
+                if (search.length < 2) {
+                    closeSuggestions();
+                    return;
+                }
+
+                debounceTimer = setTimeout(async function () {
+                    requestController = new AbortController();
+                    const url = new URL(nameInput.dataset.suggestionsUrl, window.location.origin);
+                    url.searchParams.set('search', search);
+                    setMessage('Mencari data mitra...');
+
+                    try {
+                        const response = await fetch(url, {
+                            headers: { Accept: 'application/json' },
+                            signal: requestController.signal,
+                        });
+                        if (!response.ok) {
+                            throw new Error('Permintaan saran nama mitra gagal.');
+                        }
+
+                        const records = await response.json();
+                        if (nameInput.value.trim() !== search) {
+                            return;
+                        }
+
+                        renderSuggestions(records);
+                        setMessage('');
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            return;
+                        }
+
+                        closeSuggestions();
+                        setMessage('Saran nama mitra gagal dimuat. Silakan coba lagi.', 'text-danger');
+                    }
+                }, 250);
+            });
+
+            form.addEventListener('input', function () {
+                clearValidationError();
+                if (selectedMitra && hasNewRelatedData()) {
+                    setMessage('');
+                }
+            });
+
+            nameInput.addEventListener('keydown', function (event) {
+                if (event.key === 'ArrowDown' && ! suggestions.hidden) {
+                    event.preventDefault();
+                    suggestions.querySelector('button')?.focus();
+                } else if (event.key === 'Escape') {
+                    closeSuggestions();
+                }
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!suggestions.contains(event.target) && event.target !== nameInput) {
+                    closeSuggestions();
+                }
+            });
+
+            form.addEventListener('submit', function (event) {
+                if (
+                    selectedMitra
+                    && Number(selectedMitra.id) !== currentMitraId
+                    && (currentMitraId !== 0 || ! hasNewRelatedData())
+                ) {
+                    event.preventDefault();
+                    setMessage('Mitra ini sudah terdaftar. Tambahkan PIC atau jurusan baru untuk menyimpan data tambahan.', 'text-danger');
+                    nameInput.focus();
+                }
+            });
+        });
+    </script>
+@endpush
 
 @endsection

@@ -94,6 +94,11 @@ Route::middleware('auth')->group(function () {
     )->name('mitra.store');
 
     Route::get(
+        '/mitra/suggestions',
+        [MitraController::class, 'suggestions']
+    )->name('mitra.suggestions');
+
+    Route::get(
         '/mitra/{mitra}',
         [MitraController::class, 'show']
     )

@@ -19,11 +19,6 @@ return new class extends Migration
             }
         }
 
-        if (! Schema::hasColumn('jurusan_mitra', 'jenis_kontak')) {
-            Schema::table('jurusan_mitra', function (Blueprint $table) {
-                $table->string('jenis_kontak')->nullable();
-            });
-        }
     }
 
     /**

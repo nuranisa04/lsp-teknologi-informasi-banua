@@ -16,7 +16,6 @@ return new class extends Migration
             $table->unsignedBigInteger('id_mitra');
             $table->string('nama_jurusan');
             $table->string('no_telepon', 30)->nullable();
-            $table->string('jenis_kontak')->nullable();
             $table->timestamps();
 
             $table->foreign('id_mitra')->references('id_mitra')->on('data_mitra')->cascadeOnDelete();
