@@ -22,6 +22,7 @@ class Jurusan extends Model
     public function pics(): BelongsToMany
     {
         return $this->belongsToMany(PicMitra::class, 'jurusan_pic', 'id_jurusan', 'id_pic')
-            ->withPivot('status_kontak');
+            ->withPivot('status_kontak')
+            ->withTimestamps();
     }
 }

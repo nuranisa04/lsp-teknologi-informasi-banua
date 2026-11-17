@@ -32,6 +32,7 @@ class PicMitra extends Model
 
     public function jurusans(): BelongsToMany
     {
-        return $this->belongsToMany(Jurusan::class, 'jurusan_pic', 'id_pic', 'id_jurusan');
+        return $this->belongsToMany(Jurusan::class, 'jurusan_pic', 'id_pic', 'id_jurusan')
+            ->withTimestamps();
     }
 }
